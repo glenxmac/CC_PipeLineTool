@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Pipeline Tool</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Bootstrap CSS (CDN is fine) -->
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="bg-light">
+  <nav class="navbar navbar-dark bg-dark mb-3">
+    <div class="container-fluid">
+      <span class="navbar-brand mb-0 h1">Sales Pipeline</span>
+    </div>
+  </nav>
+
+  <div class="container mb-4">
+    <!-- Nav tabs -->
+    <ul class="nav nav-tabs mb-3" id="mainTabs" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="pipeline-tab" data-bs-toggle="tab"
+                data-bs-target="#pipelineTab" type="button" role="tab">
+          Pipeline
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="summary-tab" data-bs-toggle="tab"
+                data-bs-target="#summaryTab" type="button" role="tab">
+          Summary
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="closed-tab" data-bs-toggle="tab"
+                data-bs-target="#closedTab" type="button" role="tab">
+            Closed deals
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="employees-tab" data-bs-toggle="tab"
+                data-bs-target="#employeesTab" type="button" role="tab">
+          Salespeople
+        </button>
+      </li>
+    </ul>
+
+    <div class="tab-content">
+      <!-- PIPELINE TAB -->
+      <div class="tab-pane fade show active" id="pipelineTab" role="tabpanel">
+        <!-- filters + new deal button -->
+        <div class="row mb-3">
+          <div class="col-md-4 mb-2">
+            <select id="employeeFilter" class="form-select">
+              <option value="">All salespeople</option>
+              <!-- JS will populate -->
+            </select>
+          </div>
+          <div class="col-md-8 d-flex gap-2 justify-content-end">
+            <button id="btnShowNewJobModal" class="btn btn-primary">
+              + New Deal
+            </button>
+          </div>
+        </div>
+
+        <!-- status summary row -->
+        <div class="row mb-3" id="summaryRow">
+          <!-- JS will render status cards here -->
+        </div>
+
+        <!-- main pipeline table -->
+        <div class="card">
+          <div class="card-header">
+            Current Deals
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0" id="jobsTable">
+                    <thead class="table-light">
+                        <tr>
+                        <th>ID</th>
+                        <th>Customer</th>
+                        <th>Bike</th>
+                        <th>Salesperson</th>
+                        <th>Status</th>
+                        <th>Open date</th>
+                        <th>Value</th>
+                        <th>Notes</th>
+                        <th>Actions</th> <!-- explicit, not empty -->
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- JS injects rows -->
+                    </tbody>
+                </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SUMMARY TAB -->
+      <div class="tab-pane fade" id="summaryTab" role="tabpanel">
+        <div class="row mb-3">
+          <div class="col-md-4">
+            <label class="form-label">Month</label>
+            <input type="month" class="form-control" id="summaryMonth" />
+          </div>
+        </div>
+
+        <div id="summaryContent">
+          <!-- JS will render a pivot-style table: Salesperson vs Week -->
+        </div>
+      </div>
+
+      <!-- CLOSED DEALS TAB -->
+    <div class="tab-pane fade" id="closedTab" role="tabpanel">
+        <div class="row mb-3">
+            <div class="col-md-4 mb-2">
+                <label class="form-label">Salesperson</label>
+                <select id="closedEmployeeFilter" class="form-select">
+                <option value="">All salespeople</option>
+                <!-- JS will populate -->
+                </select>
+            </div>
+            <div class="col-md-4 mb-2">
+                <label class="form-label">Outcome</label>
+                <select id="closedStatusFilter" class="form-select">
+                <option value="">All outcomes</option>
+                <option value="Invoiced">Invoiced</option>
+                <option value="Lost">Lost</option>
+                </select>
+            </div>
+            <div class="col-md-4 mb-2">
+                <label class="form-label">Closed month</label>
+                <input type="month" class="form-control" id="closedMonthFilter" />
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover mb-0" id="closedDealsTable">
+            <thead class="table-light">
+                <tr>
+                <th>ID</th>
+                <th>Customer</th>
+                <th>Bike</th>
+                <th>Salesperson</th>
+                <th>Outcome</th>
+                <th>Closed date</th>
+                <th>Value</th>
+                <th>Notes</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- JS will render closed deals -->
+            </tbody>
+            </table>
+        </div>
+    </div>
+
+      <!-- EMPLOYEES TAB -->
+      <div class="tab-pane fade" id="employeesTab" role="tabpanel">
+        <div class="row mb-3">
+          <div class="col-md-6">
+            <form id="employeeForm" class="row g-2">
+              <div class="col-8">
+                <input type="text" class="form-control" id="employeeName"
+                       placeholder="Salesperson name" required />
+              </div>
+              <div class="col-4">
+                <button class="btn btn-primary w-100" type="submit">
+                  Add salesperson
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table table-sm" id="employeesTable">
+            <thead class="table-light">
+              <tr>
+                <th>ID</th>
+                <th>Name</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- JS will render salespeople -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- New / Edit Deal Modal -->
+    <div class="modal fade" id="newJobModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <form class="modal-content" id="newJobForm">
+            <div class="modal-header">
+                <h5 class="modal-title" id="dealModalTitle">New Deal</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- hidden id for editing -->
+                <input type="hidden" name="id" id="dealId" />
+
+                <div class="mb-3">
+                <label class="form-label">Customer name</label>
+                <input type="text" class="form-control" name="customer" required />
+                </div>
+                <div class="mb-3">
+                <label class="form-label">Bike (model / details)</label>
+                <input type="text" class="form-control" name="bike" required />
+                </div>
+                <div class="mb-3">
+                <label class="form-label">Salesperson</label>
+                <select class="form-select" name="technician" id="technicianSelect" required>
+                    <!-- JS will populate -->
+                </select>
+                </div>
+                <div class="mb-3">
+                <label class="form-label">Status</label>
+                <select class="form-select" name="status" required>
+                    <option value="Enquiry">Enquiry</option>
+                    <option value="Quote">Quote</option>
+                    <option value="Approval">Approval</option>
+                    <option value="Committed">Committed</option>
+                </select>
+                </div>
+                <div class="mb-3">
+                <label class="form-label">Open date</label>
+                <input type="date" class="form-control" name="openDate" required />
+                </div>
+                <div class="mb-3">
+                <label class="form-label">Estimated value (R)</label>
+                <input type="number" step="0.01" class="form-control" name="value" />
+                </div>
+                <div class="mb-3">
+                <label class="form-label">Notes</label>
+                <textarea class="form-control" name="notes" rows="3"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button"
+                        class="btn btn-secondary"
+                        data-bs-dismiss="modal">Cancel</button>
+                <button type="submit"
+                        class="btn btn-primary"
+                        id="dealModalSubmitBtn">Save</button>
+            </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Close Deal Modal -->
+    <div class="modal fade" id="closeDealModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <form class="modal-content" id="closeDealForm">
+            <div class="modal-header">
+                <h5 class="modal-title">Close Deal</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="closeDealId" />
+
+                <p id="closeDealSummary" class="mb-3 text-muted"></p>
+
+                <div class="mb-3">
+                <label class="form-label">Outcome</label>
+                <select class="form-select" id="closeOutcome" required>
+                    <option value="Invoiced">Invoiced</option>
+                    <option value="Lost">Lost</option>
+                </select>
+                </div>
+                <div class="mb-3">
+                <label class="form-label">Closed date</label>
+                <input type="date" class="form-control" id="closeDate" required />
+                </div>
+                <div class="mb-3">
+                <label class="form-label">Notes (optional)</label>
+                <textarea class="form-control" id="closeNotes" rows="3"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button"
+                        class="btn btn-outline-secondary me-auto"
+                        id="reopenDealBtn">
+                    Reopen deal
+                </button>
+                <button type="button"
+                        class="btn btn-secondary"
+                        data-bs-dismiss="modal">Cancel</button>
+                <button type="submit"
+                        class="btn btn-primary">
+                    Confirm close
+                </button>
+            </div>
+            </form>
+        </div>
+    </div>
+
+  <!-- Bootstrap JS + Popper -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- App scripts -->
+  <script type="module" src="app.js"></script>
+</body>
+</html>
