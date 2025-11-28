@@ -261,10 +261,10 @@ function renderDealsTable () {
         `
   })
 
-  // Total row: 9 cells total to match header
+  // Total row: 10 cells total to match header
   rowsHtml += `
     <tr class="fw-bold table-light">
-      <!-- ID .. Open date (6 columns) -->
+      <!-- ID .. Open date (7 columns) -->
       <td colspan="7" class="text-end">Total</td>
       <!-- Value -->
       <td>${formatCurrency(totalValue)}</td>

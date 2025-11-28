@@ -134,7 +134,7 @@ function listItemToDeal (item) {
     notes: f.Notes || '',
     closeDate: f.CloseDate || null,
     closedOutcome: f.ClosedOutcome || null,
-    urgency: f.urgency || 'warm'
+    urgency: f.Urgency || 'Warm'
   }
 }
 
