@@ -6,11 +6,11 @@ import * as api from './api.sharepoint.js'
 
 // ---- STATUS COLOUR MAPS ----
 const STATUS_BADGE_CLASSES = {
-  Enquire: 'bg-secondary',
+  Enquiry: 'bg-secondary',
   Quote: 'bg-info text-dark',
   Approval: 'bg-warning text-dark',
   Committed: 'bg-primary',
-  Delivered: 'bg-success',
+  Invoiced: 'bg-success',
   Lost: 'bg-danger'
 }
 
@@ -22,6 +22,8 @@ const STATUS_CARD_BORDER_CLASSES = {
   Invoiced: 'border-success',
   Lost: 'border-danger'
 }
+
+const PIPELINE_STATUSES = ['Enquiry', 'Quote', 'Approval', 'Committed']
 
 function renderStatusBadge (status) {
   const cls = STATUS_BADGE_CLASSES[status] || 'bg-secondary'
@@ -43,6 +45,8 @@ const technicianSelect = document.getElementById('technicianSelect')
 const dealModalTitle = document.getElementById('dealModalTitle')
 const dealModalSubmitBtn = document.getElementById('dealModalSubmitBtn')
 const dealIdInput = document.getElementById('dealId')
+const openDateInput = document.getElementById('openDateInput')
+const originalNotesInput = document.getElementById('originalNotes')
 
 // Summary tab
 const summaryMonthInput = document.getElementById('summaryMonth')
@@ -308,35 +312,51 @@ function renderClosedDealsTable () {
 }
 
 function openDealModalFor (deal) {
-  if (!newDealModal || !newDealForm) return
+  // Reset form
+  newDealForm.reset()
 
-  renderTechnicianSelect()
+  // Get fields
+  const idInput = document.getElementById('dealId')
+  const openDateInput = document.getElementById('openDateInput')
+  const originalNotesInput = document.getElementById('originalNotes')
+  const titleEl = document.getElementById('dealModalTitle')
+  const submitBtn = document.getElementById('dealModalSubmitBtn')
 
-  if (deal) {
-    // EDIT
-    dealModalTitle.textContent = `Edit Deal #${deal.id}`
-    dealModalSubmitBtn.textContent = 'Update'
-    dealIdInput.value = deal.id
+  if (!deal) {
+    // -------------------------
+    // NEW DEAL
+    // -------------------------
+    idInput.value = ''
+    originalNotesInput.value = ''
 
-    newDealForm.elements.customer.value = deal.customer || ''
-    newDealForm.elements.bike.value = deal.bike || ''
-    newDealForm.elements.technician.value = deal.technician || ''
-    newDealForm.elements.status.value = deal.status || 'Interested'
-    newDealForm.elements.openDate.value = deal.openDate || ''
-    newDealForm.elements.value.value =
-      typeof deal.value === 'number' ? deal.value : ''
-    newDealForm.elements.notes.value = deal.notes || ''
+    // allow editing open date + default to today
+    openDateInput.disabled = false
+    openDateInput.value = new Date().toISOString().split('T')[0]
+
+    titleEl.textContent = 'New Deal'
+    submitBtn.textContent = 'Save'
   } else {
-    // NEW
-    dealModalTitle.textContent = 'New Deal'
-    dealModalSubmitBtn.textContent = 'Save'
-    dealIdInput.value = ''
-    newDealForm.reset()
+    // -------------------------
+    // EDIT EXISTING DEAL
+    // -------------------------
+    idInput.value = deal.id
 
-    const today = new Date().toISOString().slice(0, 10)
-    if (newDealForm.elements.openDate) {
-      newDealForm.elements.openDate.value = today
-    }
+    newDealForm.customer.value = deal.customer
+    newDealForm.bike.value = deal.bike
+    newDealForm.technician.value = deal.technician
+    newDealForm.status.value = deal.status
+    newDealForm.value.value = deal.value ?? ''
+    newDealForm.notes.value = deal.notes || ''
+
+    // store original notes for timestamp logic
+    originalNotesInput.value = deal.notes || ''
+
+    // disable open date editing
+    openDateInput.disabled = true
+    openDateInput.value = deal.openDate || ''
+
+    titleEl.textContent = 'Edit Deal'
+    submitBtn.textContent = 'Update'
   }
 
   newDealModal.show()
@@ -681,29 +701,53 @@ if (btnShowNewDealModal && newDealModal) {
 if (newDealForm) {
   newDealForm.addEventListener('submit', async e => {
     e.preventDefault()
+
     const formData = new FormData(newDealForm)
-    const idStr = formData.get('id')
-    const payload = {
-      customer: formData.get('customer'),
-      bike: formData.get('bike'),
-      technician: formData.get('technician'),
-      status: formData.get('status'),
-      openDate: formData.get('openDate') || null,
-      value: formData.get('value') ? Number(formData.get('value')) : null,
-      notes: formData.get('notes') || ''
+    const id = formData.get('id')
+    const rawNotes = (formData.get('notes') || '').trim()
+    const originalNotes = (formData.get('originalNotes') || '').trim()
+
+    const today = new Date().toISOString().split('T')[0]
+
+    let notesToSave = rawNotes
+
+    if (!id) {
+    // NEW DEAL: prepend date if notes exist
+      if (rawNotes) notesToSave = `${today} – ${rawNotes}`
+    } else {
+    // EDIT DEAL: if notes changed, prepend new timestamp
+      if (rawNotes !== originalNotes) {
+        notesToSave = originalNotes
+          ? `${today} – ${rawNotes}\n${originalNotes}`
+          : `${today} – ${rawNotes}`
+      }
     }
 
-    if (idStr) {
-      // edit existing
-      const id = Number(idStr)
-      await api.updateDeal(id, payload)
+    if (!id) {
+    // create
+      await api.createDeal({
+        customer: formData.get('customer'),
+        bike: formData.get('bike'),
+        technician: formData.get('technician'),
+        status: formData.get('status'),
+        openDate: formData.get('openDate'),
+        value: formData.get('value') ? Number(formData.get('value')) : null,
+        notes: notesToSave
+      })
     } else {
-      // new
-      await api.createDeal(payload)
+    // update (do NOT send openDate — locked)
+      await api.updateDeal(Number(id), {
+        customer: formData.get('customer'),
+        bike: formData.get('bike'),
+        technician: formData.get('technician'),
+        status: formData.get('status'),
+        value: formData.get('value') ? Number(formData.get('value')) : null,
+        notes: notesToSave
+      })
     }
 
     await loadAll()
-    if (newDealModal) newDealModal.hide()
+    newDealModal.hide()
   })
 }
 
@@ -772,10 +816,6 @@ if (closeDealForm) {
     await loadAll()
     if (closeDealModal) closeDealModal.hide()
   })
-}
-
-if (closedMonthFilter) {
-  closedMonthFilter.addEventListener('change', renderClosedDealsTable)
 }
 
 if (closedDealsTableBody && closeDealModal) {
