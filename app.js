@@ -23,6 +23,18 @@ const STATUS_CARD_BORDER_CLASSES = {
   Lost: 'border-danger'
 }
 
+const URGENCY_COLORS = {
+  Hot: 'bg-danger text-white',
+  Warm: 'bg-warning text-dark',
+  Cool: 'bg-info text-dark',
+  'Long-term': 'bg-secondary'
+}
+
+function renderUrgencyTag (urgency) {
+  const cls = URGENCY_COLORS[urgency] || 'bg-secondary'
+  return `<span class="badge ${cls}">${urgency}</span>`
+}
+
 const PIPELINE_STATUSES = ['Enquiry', 'Quote', 'Approval', 'Committed']
 
 // function renderStatusBadge (status) {
@@ -230,6 +242,7 @@ function renderDealsTable () {
                 `
                 ).join('')}
             </select>
+            <td>${renderUrgencyTag(deal.urgency)}</td>
             </td>
             <td>${openDateStr}</td>
             <td>${formatCurrency(deal.value)}</td>
@@ -360,6 +373,7 @@ function openDealModalFor (deal) {
     newDealForm.technician.value = deal.technician
     newDealForm.status.value = deal.status
     newDealForm.value.value = deal.value ?? ''
+    newDealForm.urgency.value = deal.urgency || 'Warm'
 
     // show full history as read-only
     if (existingNotesTextarea) existingNotesTextarea.value = deal.notes || ''
@@ -787,7 +801,8 @@ if (newDealForm) {
         status: formData.get('status'),
         openDate: formData.get('openDate'),
         value: formData.get('value') ? Number(formData.get('value')) : null,
-        notes: notesToSave
+        notes: notesToSave,
+        urgency: formData.get('urgency')
       })
     } else {
       await api.updateDeal(Number(id), {
@@ -796,12 +811,34 @@ if (newDealForm) {
         technician: formData.get('technician'),
         status: formData.get('status'),
         value: formData.get('value') ? Number(formData.get('value')) : null,
-        notes: notesToSave
+        notes: notesToSave,
+        urgency: formData.get('urgency')
       })
     }
 
     await loadAll()
     newDealModal.hide()
+  })
+}
+
+// --- INLINE STATUS SELECT HANDLER (NEW) ---
+if (dealsTableBody) {
+  dealsTableBody.addEventListener('change', async e => {
+    const select = e.target.closest('.deal-status-select')
+    if (!select) return
+
+    e.stopPropagation()
+
+    const id = Number(select.dataset.id)
+    const newStatus = select.value
+
+    try {
+      await api.updateDeal(id, { status: newStatus })
+      await loadAll()
+    } catch (err) {
+      console.error(err)
+      showToast('Unable to update status — please try again.', 'danger')
+    }
   })
 }
 
@@ -849,27 +886,6 @@ if (dealsTableBody) {
 
     // Otherwise: row click → edit
     openDealModalFor(deal)
-  })
-}
-
-// --- INLINE STATUS SELECT HANDLER (NEW) ---
-if (dealsTableBody) {
-  dealsTableBody.addEventListener('change', async e => {
-    const select = e.target.closest('.deal-status-select')
-    if (!select) return
-
-    e.stopPropagation()
-
-    const id = Number(select.dataset.id)
-    const newStatus = select.value
-
-    try {
-      await api.updateDeal(id, { status: newStatus })
-      await loadAll()
-    } catch (err) {
-      console.error(err)
-      showToast('Unable to update status — please try again.', 'danger')
-    }
   })
 }
 

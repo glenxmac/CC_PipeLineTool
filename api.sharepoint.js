@@ -133,7 +133,8 @@ function listItemToDeal (item) {
     value: typeof f.Value === 'number' ? f.Value : null,
     notes: f.Notes || '',
     closeDate: f.CloseDate || null,
-    closedOutcome: f.ClosedOutcome || null
+    closedOutcome: f.ClosedOutcome || null,
+    urgency: f.urgency || 'warm'
   }
 }
 
@@ -157,7 +158,8 @@ export async function createDeal (newDeal) {
     Value: newDeal.value || null,
     Notes: newDeal.notes || '',
     CloseDate: newDeal.closeDate || null,
-    ClosedOutcome: newDeal.closedOutcome || null
+    ClosedOutcome: newDeal.closedOutcome || null,
+    Urgency: newDeal.urgency || 'Warm'
   }
 
   const body = { fields }
@@ -186,6 +188,7 @@ export async function updateDeal (id, partial) {
   if (partial.notes !== undefined) fieldsPatch.Notes = partial.notes
   if (partial.closeDate !== undefined) fieldsPatch.CloseDate = partial.closeDate
   if (partial.closedOutcome !== undefined) fieldsPatch.ClosedOutcome = partial.closedOutcome
+  if (partial.urgency !== undefined) fieldsPatch.Urgency = partial.urgency
 
   if (Object.keys(fieldsPatch).length === 0) {
     return getDealById(id)
