@@ -30,6 +30,14 @@ const URGENCY_COLORS = {
   'Long-term': 'bg-secondary'
 }
 
+const URGENCY_LEVELS = ['Hot', 'Warm', 'Cold']
+
+const URGENCY_BADGE_CLASSES = {
+  Hot: 'badge rounded-pill bg-danger',
+  Warm: 'badge rounded-pill bg-secondary',
+  Cold: 'badge rounded-pill bg-light text-dark border'
+}
+
 function renderUrgencyTag (urgency) {
   const cls = URGENCY_COLORS[urgency] || 'bg-secondary'
   return `<span class="badge ${cls}">${urgency}</span>`
@@ -229,21 +237,39 @@ function renderDealsTable () {
             <td>${deal.customer || ''}</td>
             <td>${deal.bike || ''}</td>
             <td>${deal.technician || ''}</td>
+
+            <!-- Status (inline editable) -->
             <td>
             <select
-                class="form-select form-select-sm deal-status-select ${borderClass}"
+                class="form-select form-select-sm deal-status-select"
                 data-id="${deal.id}"
             >
                 ${PIPELINE_STATUSES.map(
                 s => `
-                    <option value="${s}" ${s === currentStatus ? 'selected' : ''}>
+                    <option value="${s}" ${s === (deal.status || 'Enquiry') ? 'selected' : ''}>
                     ${s}
                     </option>
                 `
                 ).join('')}
             </select>
-            <td>${renderUrgencyTag(deal.urgency)}</td>
             </td>
+
+            <!-- Urgency (inline editable) -->
+            <td>
+            <select
+                class="form-select form-select-sm deal-urgency-select"
+                data-id="${deal.id}"
+            >
+                ${URGENCY_LEVELS.map(
+                u => `
+                    <option value="${u}" ${u === (deal.urgency || 'Warm') ? 'selected' : ''}>
+                    ${u}
+                    </option>
+                `
+                ).join('')}
+            </select>
+            </td>
+
             <td>${openDateStr}</td>
             <td>${formatCurrency(deal.value)}</td>
             <td>${shortenNotes(deal.notes)}</td>
@@ -822,22 +848,29 @@ if (newDealForm) {
 }
 
 // --- INLINE STATUS SELECT HANDLER (NEW) ---
+// --- INLINE STATUS & URGENCY HANDLER ---
 if (dealsTableBody) {
   dealsTableBody.addEventListener('change', async e => {
-    const select = e.target.closest('.deal-status-select')
-    if (!select) return
+    const statusSelect = e.target.closest('.deal-status-select')
+    const urgencySelect = e.target.closest('.deal-urgency-select')
 
-    e.stopPropagation()
+    // If the change wasn’t on either select, ignore
+    if (!statusSelect && !urgencySelect) return
 
-    const id = Number(select.dataset.id)
-    const newStatus = select.value
+    const source = statusSelect || urgencySelect
+    const id = Number(source.dataset.id)
+
+    const patch = {}
+    if (statusSelect) patch.status = statusSelect.value
+    if (urgencySelect) patch.urgency = urgencySelect.value
 
     try {
-      await api.updateDeal(id, { status: newStatus })
+      await api.updateDeal(id, patch)
       await loadAll()
+      showToast('Deal updated', 'success')
     } catch (err) {
       console.error(err)
-      showToast('Unable to update status — please try again.', 'danger')
+      showToast('Unable to update deal — please try again.', 'danger')
     }
   })
 }
