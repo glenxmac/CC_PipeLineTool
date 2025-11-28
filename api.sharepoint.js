@@ -1,11 +1,19 @@
 // api.sharepoint.js
 
 // ---- CONFIG ----
+// ---- CONFIG ----
+const IS_LOCAL =
+  window.location.hostname === 'localhost' ||
+  window.location.hostname === '127.0.0.1'
+
 const MSAL_CONFIG = {
   auth: {
     clientId: '796b1ce0-8549-4cf5-b2af-0f15b6948458', // App registration
     authority: 'https://login.microsoftonline.com/d69ad18b-43e9-43bc-8ef5-0ef37b5a8d0c',
-    redirectUri: 'https://glenxmac.github.io/CC_PipeLineTool/' // TODO: replace
+    redirectUri: IS_LOCAL
+      // 🔧 adjust this to whatever Live Server gives you, e.g.:
+      ? window.location.origin // e.g. http://127.0.0.1:5500
+      : 'https://glenxmac.github.io/CC_PipeLineTool/'
   }
 }
 
@@ -58,9 +66,16 @@ async function loginIfNeeded () {
 }
 
 async function getAccessToken () {
-  const account = await loginIfNeeded()
+  // 1) Try to grab any existing account
+  let account = await getActiveAccount()
+
+  // 2) If no account, only then do interactive login
   if (!account) {
-    throw new Error('No account available for token acquisition')
+    if (isInPopup()) {
+      // In the popup we don't try to open another popup
+      throw new Error('No account in popup context')
+    }
+    account = await loginIfNeeded()
   }
 
   const request = {
@@ -68,11 +83,12 @@ async function getAccessToken () {
     account
   }
 
+  // 3) First try silent token (cached/refresh)
   try {
     const result = await msalInstance.acquireTokenSilent(request)
     return result.accessToken
   } catch (e) {
-    // Only try another popup from the main window, not from inside a popup.
+    // If silent fails (expired / first time / consent needed), fall back to popup
     if (!isInPopup()) {
       const result = await msalInstance.acquireTokenPopup(request)
       return result.accessToken

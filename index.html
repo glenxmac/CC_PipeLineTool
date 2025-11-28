@@ -246,9 +246,26 @@
                 <label class="form-label">Estimated value (R)</label>
                 <input type="number" step="0.01" class="form-control" name="value" />
                 </div>
+                <!-- Hidden original notes for JS logic -->
+                <input type="hidden" name="originalNotes" id="originalNotes" />
+
                 <div class="mb-3">
-                <label class="form-label">Notes</label>
-                <textarea class="form-control" name="notes" rows="3"></textarea>
+                    <label class="form-label">Existing notes</label>
+                    <textarea class="form-control" id="existingNotes" rows="3" readonly></textarea>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Add new update</label>
+                    <textarea
+                        class="form-control"
+                        name="notes"
+                        id="newNote"
+                        rows="3"
+                        placeholder="e.g. Called customer, waiting for approval"
+                    ></textarea>
+                    <div class="form-text">
+                        This will be saved with today’s date and added on top of the existing notes.
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">

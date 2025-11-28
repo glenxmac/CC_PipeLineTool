@@ -29,7 +29,6 @@ function renderStatusBadge (status) {
   const cls = STATUS_BADGE_CLASSES[status] || 'bg-secondary'
   return `<span class="badge ${cls}">${status}</span>`
 }
-
 // ---- DOM ELEMENTS ----
 
 // Pipeline tab
@@ -42,11 +41,8 @@ const newDealModalEl = document.getElementById('newJobModal')
 const btnShowNewDealModal = document.getElementById('btnShowNewJobModal')
 const newDealModal = newDealModalEl ? new bootstrap.Modal(newDealModalEl) : null
 const technicianSelect = document.getElementById('technicianSelect')
-const dealModalTitle = document.getElementById('dealModalTitle')
-const dealModalSubmitBtn = document.getElementById('dealModalSubmitBtn')
-const dealIdInput = document.getElementById('dealId')
-const openDateInput = document.getElementById('openDateInput')
-const originalNotesInput = document.getElementById('originalNotes')
+const existingNotesTextarea = document.getElementById('existingNotes')
+const newNoteInput = document.getElementById('newNote')
 
 // Summary tab
 const summaryMonthInput = document.getElementById('summaryMonth')
@@ -218,7 +214,20 @@ function renderDealsTable () {
         <td>${deal.customer || ''}</td>
         <td>${deal.bike || ''}</td>
         <td>${deal.technician || ''}</td>
-        <td>${renderStatusBadge(deal.status || '')}</td>
+        <td>
+            <select
+                class="form-select form-select-sm deal-status-select"
+                data-id="${deal.id}"
+            >
+                ${PIPELINE_STATUSES.map(
+                s => `
+                    <option value="${s}" ${s === (deal.status || 'Enquiry') ? 'selected' : ''}>
+                    ${s}
+                    </option>
+                `
+                ).join('')}
+            </select>
+        </td>
         <td>${openDateStr}</td>
         <td>${formatCurrency(deal.value)}</td>
         <td>${shortenNotes(deal.notes)}</td>
@@ -312,10 +321,9 @@ function renderClosedDealsTable () {
 }
 
 function openDealModalFor (deal) {
-  // Reset form
+  // Reset form (clears inputs, including newNote)
   newDealForm.reset()
 
-  // Get fields
   const idInput = document.getElementById('dealId')
   const openDateInput = document.getElementById('openDateInput')
   const originalNotesInput = document.getElementById('originalNotes')
@@ -328,6 +336,9 @@ function openDealModalFor (deal) {
     // -------------------------
     idInput.value = ''
     originalNotesInput.value = ''
+
+    if (existingNotesTextarea) existingNotesTextarea.value = ''
+    if (newNoteInput) newNoteInput.value = ''
 
     // allow editing open date + default to today
     openDateInput.disabled = false
@@ -346,9 +357,13 @@ function openDealModalFor (deal) {
     newDealForm.technician.value = deal.technician
     newDealForm.status.value = deal.status
     newDealForm.value.value = deal.value ?? ''
-    newDealForm.notes.value = deal.notes || ''
 
-    // store original notes for timestamp logic
+    // show full history as read-only
+    if (existingNotesTextarea) existingNotesTextarea.value = deal.notes || ''
+    // new update starts empty
+    if (newNoteInput) newNoteInput.value = ''
+
+    // store original notes (full history) for submit logic
     originalNotesInput.value = deal.notes || ''
 
     // disable open date editing
@@ -704,27 +719,32 @@ if (newDealForm) {
 
     const formData = new FormData(newDealForm)
     const id = formData.get('id')
-    const rawNotes = (formData.get('notes') || '').trim()
-    const originalNotes = (formData.get('originalNotes') || '').trim()
+
+    const newUpdate = (formData.get('notes') || '').trim() // only the new text
+    const originalNotes = (formData.get('originalNotes') || '').trim() // full history
 
     const today = new Date().toISOString().split('T')[0]
 
-    let notesToSave = rawNotes
+    let notesToSave = originalNotes
 
     if (!id) {
-    // NEW DEAL: prepend date if notes exist
-      if (rawNotes) notesToSave = `${today} – ${rawNotes}`
-    } else {
-    // EDIT DEAL: if notes changed, prepend new timestamp
-      if (rawNotes !== originalNotes) {
-        notesToSave = originalNotes
-          ? `${today} – ${rawNotes}\n${originalNotes}`
-          : `${today} – ${rawNotes}`
+    // NEW DEAL
+      if (newUpdate) {
+        notesToSave = `${today} – ${newUpdate}`
+      } else {
+        notesToSave = ''
       }
+    } else {
+    // EDIT EXISTING DEAL
+      if (newUpdate) {
+        notesToSave = originalNotes
+          ? `${today} – ${newUpdate}\n${originalNotes}`
+          : `${today} – ${newUpdate}`
+      }
+    // if no newUpdate, notesToSave stays as originalNotes
     }
 
     if (!id) {
-    // create
       await api.createDeal({
         customer: formData.get('customer'),
         bike: formData.get('bike'),
@@ -735,7 +755,6 @@ if (newDealForm) {
         notes: notesToSave
       })
     } else {
-    // update (do NOT send openDate — locked)
       await api.updateDeal(Number(id), {
         customer: formData.get('customer'),
         bike: formData.get('bike'),
@@ -791,6 +810,25 @@ if (dealsTableBody) {
 
     // Otherwise: row click → edit
     openDealModalFor(deal)
+  })
+}
+
+// --- INLINE STATUS SELECT HANDLER (NEW) ---
+if (dealsTableBody) {
+  dealsTableBody.addEventListener('change', async e => {
+    const select = e.target.closest('.deal-status-select')
+    if (!select) return
+
+    const id = Number(select.dataset.id)
+    const newStatus = select.value
+
+    try {
+      await api.updateDeal(id, { status: newStatus })
+      await loadAll()
+    } catch (err) {
+      console.error(err)
+      alert('Unable to update status — please try again.')
+    }
   })
 }
 
