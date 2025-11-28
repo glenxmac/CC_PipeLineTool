@@ -1,21 +1,24 @@
 // api.sharepoint.js
 
 // ---- CONFIG ----
-// Replace these with your real IDs from Azure + Graph
 const MSAL_CONFIG = {
   auth: {
-    clientId: '796b1ce0-8549-4cf5-b2af-0f15b6948458', // from App registration
+    clientId: '796b1ce0-8549-4cf5-b2af-0f15b6948458', // App registration
     authority: 'https://login.microsoftonline.com/d69ad18b-43e9-43bc-8ef5-0ef37b5a8d0c',
-    redirectUri: 'https://YOUR_GITHUB_USERNAME.github.io/cc-pipeline-web/'
+    redirectUri: 'https://glenxmac.github.io/CC_PipeLineTool/' // TODO: replace
   }
 }
 
 const GRAPH_SCOPES = ['https://graph.microsoft.com/Sites.ReadWrite.All']
 
+// HOST + SITE + LIST IDs
 const GRAPH_SITE_ID =
   'completecyclist.sharepoint.com,96a4d39a-1fd7-4060-a116-c310fb39540c,bb7d28c5-27a4-4991-a726-f0e83946a8aa'
 
-const GRAPH_LIST_ID = '7a9d0573-f143-4314-b726-c8f0a7b8b2e7'
+const GRAPH_DEALS_LIST_ID = '7a9d0573-f143-4314-b726-c8f0a7b8b2e7'
+
+// TODO: replace with the Id of your Salespeople list
+const GRAPH_EMP_LIST_ID = 'a3c95ce2-cbe9-4e23-8a9f-a58a128fead6'
 
 // ---- MSAL setup ----
 const msalInstance = new msal.PublicClientApplication(MSAL_CONFIG)
@@ -71,19 +74,23 @@ async function graphFetch (path, options = {}) {
       'Content-Type': 'application/json'
     }
   })
+
   if (!res.ok) {
     const text = await res.text()
     throw new Error(`Graph error ${res.status}: ${text}`)
   }
+  // DELETE responses have no body
+  if (res.status === 204) return null
   return res.json()
 }
 
-// ---- Mapping between list items and your Deal model ----
+// ---------- DEALS (PipelineDeals) ----------
 
 function listItemToDeal (item) {
   const f = item.fields
   return {
-    id: item.id,
+    // make sure id is a number, like in the mock
+    id: Number(item.id),
     customer: f.Customer || '',
     bike: f.Bike || '',
     technician: f.Technician || '',
@@ -96,15 +103,15 @@ function listItemToDeal (item) {
   }
 }
 
-// ---- Public API used by app.js ----
-
+// mirror: export async function getDeals()
 export async function getDeals () {
   const data = await graphFetch(
-    `/sites/${GRAPH_SITE_ID}/lists/${GRAPH_LIST_ID}/items?expand=fields`
+    `/sites/${GRAPH_SITE_ID}/lists/${GRAPH_DEALS_LIST_ID}/items?expand=fields`
   )
   return data.value.map(listItemToDeal)
 }
 
+// mirror: export async function createDeal(newDeal)
 export async function createDeal (newDeal) {
   const fields = {
     Title: `${newDeal.customer} - ${newDeal.bike}`,
@@ -119,12 +126,10 @@ export async function createDeal (newDeal) {
     ClosedOutcome: newDeal.closedOutcome || null
   }
 
-  const body = {
-    fields
-  }
+  const body = { fields }
 
   const item = await graphFetch(
-    `/sites/${GRAPH_SITE_ID}/lists/${GRAPH_LIST_ID}/items`,
+    `/sites/${GRAPH_SITE_ID}/lists/${GRAPH_DEALS_LIST_ID}/items`,
     {
       method: 'POST',
       body: JSON.stringify(body)
@@ -134,26 +139,26 @@ export async function createDeal (newDeal) {
   return listItemToDeal(item)
 }
 
-export async function updateDeal (id, patch) {
-  // patch only the fields that changed
+// mirror: export async function updateDeal(id, partial)
+export async function updateDeal (id, partial) {
   const fieldsPatch = {}
 
-  if (patch.customer !== undefined) fieldsPatch.Customer = patch.customer
-  if (patch.bike !== undefined) fieldsPatch.Bike = patch.bike
-  if (patch.technician !== undefined) fieldsPatch.Technician = patch.technician
-  if (patch.status !== undefined) fieldsPatch.Status = patch.status
-  if (patch.openDate !== undefined) fieldsPatch.OpenDate = patch.openDate
-  if (patch.value !== undefined) fieldsPatch.Value = patch.value
-  if (patch.notes !== undefined) fieldsPatch.Notes = patch.notes
-  if (patch.closedDate !== undefined) fieldsPatch.ClosedDate = patch.closedDate
-  if (patch.closedOutcome !== undefined) fieldsPatch.ClosedOutcome = patch.closedOutcome
+  if (partial.customer !== undefined) fieldsPatch.Customer = partial.customer
+  if (partial.bike !== undefined) fieldsPatch.Bike = partial.bike
+  if (partial.technician !== undefined) fieldsPatch.Technician = partial.technician
+  if (partial.status !== undefined) fieldsPatch.Status = partial.status
+  if (partial.openDate !== undefined) fieldsPatch.OpenDate = partial.openDate
+  if (partial.value !== undefined) fieldsPatch.Value = partial.value
+  if (partial.notes !== undefined) fieldsPatch.Notes = partial.notes
+  if (partial.closedDate !== undefined) fieldsPatch.ClosedDate = partial.closedDate
+  if (partial.closedOutcome !== undefined) fieldsPatch.ClosedOutcome = partial.closedOutcome
 
   if (Object.keys(fieldsPatch).length === 0) {
     return getDealById(id)
   }
 
   await graphFetch(
-    `/sites/${GRAPH_SITE_ID}/lists/${GRAPH_LIST_ID}/items/${id}/fields`,
+    `/sites/${GRAPH_SITE_ID}/lists/${GRAPH_DEALS_LIST_ID}/items/${id}/fields`,
     {
       method: 'PATCH',
       body: JSON.stringify(fieldsPatch)
@@ -165,14 +170,62 @@ export async function updateDeal (id, patch) {
 
 async function getDealById (id) {
   const item = await graphFetch(
-    `/sites/${GRAPH_SITE_ID}/lists/${GRAPH_LIST_ID}/items/${id}?expand=fields`
+    `/sites/${GRAPH_SITE_ID}/lists/${GRAPH_DEALS_LIST_ID}/items/${id}?expand=fields`
   )
   return listItemToDeal(item)
 }
 
+// mirror: export async function deleteDeal(id)
 export async function deleteDeal (id) {
   await graphFetch(
-    `/sites/${GRAPH_SITE_ID}/lists/${GRAPH_LIST_ID}/items/${id}`,
+    `/sites/${GRAPH_SITE_ID}/lists/${GRAPH_DEALS_LIST_ID}/items/${id}`,
     { method: 'DELETE' }
   )
+  // mock returns resolved Promise<void>, so this matches
+}
+
+// ---------- EMPLOYEES (Salespeople) ----------
+
+// map Salespeople list item to { id, name }
+function listItemToEmployee (item) {
+  const f = item.fields
+  // using Title as the display name
+  const name = f.Title || f.Name || ''
+  return {
+    id: Number(item.id),
+    name
+  }
+}
+
+// mirror: export async function getEmployees()
+export async function getEmployees () {
+  const data = await graphFetch(
+    `/sites/${GRAPH_SITE_ID}/lists/${GRAPH_EMP_LIST_ID}/items?expand=fields`
+  )
+  return data.value.map(listItemToEmployee)
+}
+
+// mirror: export async function createEmployee(name)
+export async function createEmployee (name) {
+  const trimmed = name.trim()
+  if (!trimmed) {
+    throw new Error('Empty name')
+  }
+
+  const body = {
+    fields: {
+      Title: trimmed
+      // if you add a separate Name column, also set Name: trimmed here
+    }
+  }
+
+  const item = await graphFetch(
+    `/sites/${GRAPH_SITE_ID}/lists/${GRAPH_EMP_LIST_ID}/items`,
+    {
+      method: 'POST',
+      body: JSON.stringify(body)
+    }
+  )
+
+  return listItemToEmployee(item)
 }
