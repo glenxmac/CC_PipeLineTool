@@ -35,20 +35,34 @@ async function getActiveAccount () {
   return account
 }
 
+function isInPopup () {
+  // True when running inside the MSAL login popup window
+  return !!window.opener && window.opener !== window
+}
+
 async function loginIfNeeded () {
-  let account = await getActiveAccount()
-  if (!account) {
-    const loginResponse = await msalInstance.loginPopup({
-      scopes: GRAPH_SCOPES
-    })
-    msalInstance.setActiveAccount(loginResponse.account)
-    account = loginResponse.account
+  // If we're in the popup window, DON'T try to open another popup.
+  if (isInPopup()) {
+    // In this window we just let MSAL finish its flow and notify the opener.
+    return getActiveAccount()
   }
-  return account
+
+  const account = await getActiveAccount()
+  if (account) return account
+
+  const loginResponse = await msalInstance.loginPopup({
+    scopes: GRAPH_SCOPES
+  })
+  msalInstance.setActiveAccount(loginResponse.account)
+  return loginResponse.account
 }
 
 async function getAccessToken () {
   const account = await loginIfNeeded()
+  if (!account) {
+    throw new Error('No account available for token acquisition')
+  }
+
   const request = {
     scopes: GRAPH_SCOPES,
     account
@@ -58,8 +72,12 @@ async function getAccessToken () {
     const result = await msalInstance.acquireTokenSilent(request)
     return result.accessToken
   } catch (e) {
-    const result = await msalInstance.acquireTokenPopup(request)
-    return result.accessToken
+    // Only try another popup from the main window, not from inside a popup.
+    if (!isInPopup()) {
+      const result = await msalInstance.acquireTokenPopup(request)
+      return result.accessToken
+    }
+    throw e
   }
 }
 
@@ -98,7 +116,7 @@ function listItemToDeal (item) {
     openDate: f.OpenDate || null,
     value: typeof f.Value === 'number' ? f.Value : null,
     notes: f.Notes || '',
-    closedDate: f.ClosedDate || null,
+    closeDate: f.CloseDate || null,
     closedOutcome: f.ClosedOutcome || null
   }
 }
@@ -122,7 +140,7 @@ export async function createDeal (newDeal) {
     OpenDate: newDeal.openDate || new Date().toISOString().split('T')[0],
     Value: newDeal.value || null,
     Notes: newDeal.notes || '',
-    ClosedDate: newDeal.closedDate || null,
+    CloseDate: newDeal.closeDate || null,
     ClosedOutcome: newDeal.closedOutcome || null
   }
 
@@ -150,7 +168,7 @@ export async function updateDeal (id, partial) {
   if (partial.openDate !== undefined) fieldsPatch.OpenDate = partial.openDate
   if (partial.value !== undefined) fieldsPatch.Value = partial.value
   if (partial.notes !== undefined) fieldsPatch.Notes = partial.notes
-  if (partial.closedDate !== undefined) fieldsPatch.ClosedDate = partial.closedDate
+  if (partial.closeDate !== undefined) fieldsPatch.CloseDate = partial.closeDate
   if (partial.closedOutcome !== undefined) fieldsPatch.ClosedOutcome = partial.closedOutcome
 
   if (Object.keys(fieldsPatch).length === 0) {

@@ -158,7 +158,7 @@ function renderStatusSummary () {
   if (!statusSummaryRow) return
 
   const byStatus = allDeals
-    .filter(d => !d.closedDate) // only open deals in the top summary
+    .filter(d => !d.closeDate) // only open deals in the top summary
     .reduce((acc, deal) => {
       const key = deal.status || 'Unknown'
       acc[key] = (acc[key] || 0) + 1
@@ -191,7 +191,7 @@ function renderDealsTable () {
 
   const selectedTech = salespersonFilter ? salespersonFilter.value : ''
 
-  const openDeals = allDeals.filter(d => !d.closedDate)
+  const openDeals = allDeals.filter(d => !d.closeDate)
 
   const filtered = openDeals.filter(d => {
     const matchesTech = selectedTech ? d.technician === selectedTech : true
@@ -254,7 +254,7 @@ function renderClosedDealsTable () {
   const selectedTech = closedEmployeeFilter ? closedEmployeeFilter.value : ''
   const selectedOutcome = closedStatusFilter ? closedStatusFilter.value : ''
 
-  let closedDeals = allDeals.filter(d => d.closedDate)
+  let closedDeals = allDeals.filter(d => d.closeDate)
 
   if (selectedTech) {
     closedDeals = closedDeals.filter(d => d.technician === selectedTech)
@@ -264,7 +264,7 @@ function renderClosedDealsTable () {
   }
   if (monthFilter) {
     closedDeals = closedDeals.filter(
-      d => d.closedDate && d.closedDate.startsWith(monthFilter)
+      d => d.closeDate && d.closeDate.startsWith(monthFilter)
     )
   }
 
@@ -272,8 +272,8 @@ function renderClosedDealsTable () {
   let totalValue = 0
 
   closedDeals.forEach(deal => {
-    const closedDateStr = deal.closedDate
-      ? new Date(deal.closedDate).toLocaleDateString()
+    const closeDateStr = deal.closeDate
+      ? new Date(deal.closeDate).toLocaleDateString()
       : ''
     if (typeof deal.value === 'number') totalValue += deal.value
 
@@ -289,7 +289,7 @@ function renderClosedDealsTable () {
         <td>${deal.bike || ''}</td>
         <td>${deal.technician || ''}</td>
         <td>${outcomeBadge}</td>
-        <td>${closedDateStr}</td>
+        <td>${closeDateStr}</td>
         <td>${formatCurrency(deal.value)}</td>
         <td>${shortenNotes(deal.notes)}</td>
     </tr>
@@ -454,13 +454,13 @@ function renderMonthlySummary () {
   const monthFilter = summaryMonthInput?.value || ''
 
   // 1) Open deals snapshot (still open now)
-  const openDeals = allDeals.filter(d => !d.closedDate)
+  const openDeals = allDeals.filter(d => !d.closeDate)
 
   // 2) Closed this month (Lost / Invoiced for the selected month)
-  let closedForMonth = allDeals.filter(d => d.closedDate)
+  let closedForMonth = allDeals.filter(d => d.closeDate)
   if (monthFilter) {
     closedForMonth = closedForMonth.filter(
-      d => d.closedDate && d.closedDate.startsWith(monthFilter)
+      d => d.closeDate && d.closeDate.startsWith(monthFilter)
     )
   }
 
@@ -736,7 +736,7 @@ if (dealsTableBody) {
       closeDealIdInput.value = deal.id
       closeOutcomeSelect.value = deal.closedOutcome || 'Invoiced'
       closeDateInput.value =
-        deal.closedDate || new Date().toISOString().slice(0, 10)
+        deal.closeDate || new Date().toISOString().slice(0, 10)
       closeNotesInput.value = deal.notes || ''
       closeDealSummary.textContent =
         `${deal.customer} – ${deal.bike} (${deal.technician})`
@@ -757,13 +757,13 @@ if (closeDealForm) {
     if (!id) return
 
     const outcome = closeOutcomeSelect.value // 'Successful' or 'Lost'
-    const closedDate = closeDateInput.value
+    const closeDate = closeDateInput.value
     const extraNotes = closeNotesInput.value.trim()
 
     const deal = allDeals.find(d => d.id === id)
 
     await api.updateDeal(id, {
-      closedDate,
+      closeDate,
       closedOutcome: outcome,
       status: outcome === 'Invoiced' ? 'Invoiced' : 'Lost',
       notes: extraNotes || deal.notes // keep old notes if empty
@@ -790,7 +790,7 @@ if (closedDealsTableBody && closeDealModal) {
     closeDealIdInput.value = deal.id
     closeOutcomeSelect.value = deal.closedOutcome || 'Invoiced'
     closeDateInput.value =
-      deal.closedDate || new Date().toISOString().slice(0, 10)
+      deal.closeDate || new Date().toISOString().slice(0, 10)
     closeNotesInput.value = deal.notes || ''
     closeDealSummary.textContent =
       `${deal.customer} – ${deal.bike} (${deal.technician})`
@@ -817,7 +817,7 @@ if (reopenDealBtn) {
     if (!deal) return
 
     await api.updateDeal(id, {
-      closedDate: null,
+      closeDate: null,
       closedOutcome: null,
       // put it back into an "open" stage
       status:
