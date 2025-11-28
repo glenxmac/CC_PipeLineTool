@@ -25,10 +25,10 @@ const STATUS_CARD_BORDER_CLASSES = {
 
 const PIPELINE_STATUSES = ['Enquiry', 'Quote', 'Approval', 'Committed']
 
-function renderStatusBadge (status) {
-  const cls = STATUS_BADGE_CLASSES[status] || 'bg-secondary'
-  return `<span class="badge ${cls}">${status}</span>`
-}
+// function renderStatusBadge (status) {
+//   const cls = STATUS_BADGE_CLASSES[status] || 'bg-secondary'
+//   return `<span class="badge ${cls}">${status}</span>`
+// }
 // ---- DOM ELEMENTS ----
 
 // Pipeline tab
@@ -680,6 +680,38 @@ function renderMonthlySummary () {
   monthlySummaryContainer.innerHTML = header + rows + footer
 }
 
+function showToast (message, type = 'info') {
+  // type: 'success', 'danger', 'warning', 'info'
+  const toastId = `toast-${Date.now()}`
+
+  const bgClass = {
+    success: 'bg-success text-white',
+    danger: 'bg-danger text-white',
+    warning: 'bg-warning text-dark',
+    info: 'bg-primary text-white'
+  }[type] || 'bg-secondary text-white'
+
+  const container = document.getElementById('toastContainer')
+
+  container.insertAdjacentHTML(
+    'beforeend',
+    `
+    <div id="${toastId}" class="toast align-items-center ${bgClass}" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="d-flex">
+        <div class="toast-body">
+          ${message}
+        </div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+      </div>
+    </div>
+    `
+  )
+
+  const toastElem = document.getElementById(toastId)
+  const toast = new bootstrap.Toast(toastElem, { delay: 3000 })
+  toast.show()
+}
+
 // ---- EVENT HANDLERS ----
 
 // Filter by salesperson
@@ -827,7 +859,7 @@ if (dealsTableBody) {
       await loadAll()
     } catch (err) {
       console.error(err)
-      alert('Unable to update status — please try again.')
+      showToast('Unable to update status — please try again.', 'danger')
     }
   })
 }
