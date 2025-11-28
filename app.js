@@ -265,7 +265,7 @@ function renderDealsTable () {
   rowsHtml += `
     <tr class="fw-bold table-light">
       <!-- ID .. Open date (6 columns) -->
-      <td colspan="6" class="text-end">Total</td>
+      <td colspan="7" class="text-end">Total</td>
       <!-- Value -->
       <td>${formatCurrency(totalValue)}</td>
       <!-- Notes + Actions -->
