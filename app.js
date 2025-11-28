@@ -238,10 +238,10 @@ function renderDealsTable () {
             <td>${deal.bike || ''}</td>
             <td>${deal.technician || ''}</td>
 
-            <!-- Status (inline editable) -->
+                    <!-- Status (inline editable) -->
             <td>
             <select
-                class="form-select form-select-sm deal-status-select"
+                class="form-select form-select-sm deal-status-select ${STATUS_CARD_BORDER_CLASSES[deal.status] || ''}"
                 data-id="${deal.id}"
             >
                 ${PIPELINE_STATUSES.map(
@@ -878,15 +878,19 @@ if (dealsTableBody) {
 // Quick status button
 if (dealsTableBody) {
   dealsTableBody.addEventListener('click', async e => {
-    if (e.target.closest('.deal-status-select')) {
-      return
-    }
-
     const row = e.target.closest('tr[data-id]')
     if (!row) return
     const id = Number(row.dataset.id)
     const deal = allDeals.find(d => d.id === id)
     if (!deal) return
+
+    // 🚫 If click was on one of the inline selects, do NOT open the modal
+    if (
+      e.target.closest('.deal-status-select') ||
+      e.target.closest('.deal-urgency-select')
+    ) {
+      return
+    }
 
     // Delete button
     const deleteBtn = e.target.closest('.btn-delete-deal')
