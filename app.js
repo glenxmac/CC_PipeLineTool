@@ -208,41 +208,44 @@ function renderDealsTable () {
       : ''
     if (typeof deal.value === 'number') totalValue += deal.value
 
+    const currentStatus = deal.status || 'Enquiry'
+    const borderClass = STATUS_CARD_BORDER_CLASSES[currentStatus] || 'border-secondary'
+
     rowsHtml += `
-      <tr data-id="${deal.id}" class="deal-row" style="cursor:pointer">
-        <td>${deal.id}</td>
-        <td>${deal.customer || ''}</td>
-        <td>${deal.bike || ''}</td>
-        <td>${deal.technician || ''}</td>
-        <td>
+        <tr data-id="${deal.id}" class="deal-row" style="cursor:pointer">
+            <td>${deal.id}</td>
+            <td>${deal.customer || ''}</td>
+            <td>${deal.bike || ''}</td>
+            <td>${deal.technician || ''}</td>
+            <td>
             <select
-                class="form-select form-select-sm deal-status-select"
+                class="form-select form-select-sm deal-status-select ${borderClass}"
                 data-id="${deal.id}"
             >
                 ${PIPELINE_STATUSES.map(
                 s => `
-                    <option value="${s}" ${s === (deal.status || 'Enquiry') ? 'selected' : ''}>
+                    <option value="${s}" ${s === currentStatus ? 'selected' : ''}>
                     ${s}
                     </option>
                 `
                 ).join('')}
             </select>
-        </td>
-        <td>${openDateStr}</td>
-        <td>${formatCurrency(deal.value)}</td>
-        <td>${shortenNotes(deal.notes)}</td>
-        <td class="text-end">
-          <button type="button"
-                  class="btn btn-sm btn-outline-secondary btn-close-deal me-1">
-            Close
-          </button>
-          <button type="button"
-                  class="btn btn-sm btn-outline-danger btn-delete-deal">
-            Delete
-          </button>
-        </td>
-      </tr>
-    `
+            </td>
+            <td>${openDateStr}</td>
+            <td>${formatCurrency(deal.value)}</td>
+            <td>${shortenNotes(deal.notes)}</td>
+            <td class="text-end">
+            <button type="button"
+                    class="btn btn-sm btn-outline-secondary btn-close-deal me-1">
+                Close
+            </button>
+            <button type="button"
+                    class="btn btn-sm btn-outline-danger btn-delete-deal">
+                Delete
+            </button>
+            </td>
+        </tr>
+        `
   })
 
   // Total row: 9 cells total to match header
@@ -805,6 +808,10 @@ if (newDealForm) {
 // Quick status button
 if (dealsTableBody) {
   dealsTableBody.addEventListener('click', async e => {
+    if (e.target.closest('.deal-status-select')) {
+      return
+    }
+
     const row = e.target.closest('tr[data-id]')
     if (!row) return
     const id = Number(row.dataset.id)
@@ -850,6 +857,8 @@ if (dealsTableBody) {
   dealsTableBody.addEventListener('change', async e => {
     const select = e.target.closest('.deal-status-select')
     if (!select) return
+
+    e.stopPropagation()
 
     const id = Number(select.dataset.id)
     const newStatus = select.value
