@@ -1,7 +1,8 @@
 /* global bootstrap */
 // app.js
 
-import * as api from './api.mock.js' // later swap to ./api.sharepoint.js
+// import * as api from './api.mock.js' // later swap to ./api.sharepoint.js
+import * as api from './api.sharepoint.js'
 
 // ---- STATUS COLOUR MAPS ----
 const STATUS_BADGE_CLASSES = {
@@ -18,7 +19,7 @@ const STATUS_CARD_BORDER_CLASSES = {
   Quote: 'border-info',
   Approval: 'border-warning',
   Committed: 'border-primary',
-  Delivered: 'border-success',
+  Invoiced: 'border-success',
   Lost: 'border-danger'
 }
 
@@ -46,6 +47,7 @@ const dealIdInput = document.getElementById('dealId')
 // Summary tab
 const summaryMonthInput = document.getElementById('summaryMonth')
 const summaryContent = document.getElementById('summaryContent')
+const monthlySummaryContainer = document.getElementById('monthlySummaryContainer')
 
 // Closed Deals tab
 const closedDealsTableBody = document.querySelector('#closedDealsTable tbody')
@@ -86,6 +88,7 @@ async function loadAll () {
   renderStatusSummary()
   renderDealsTable()
   renderWeeklySummary()
+  renderMonthlySummary()
   renderClosedDealsTable()
 }
 
@@ -442,6 +445,206 @@ function renderWeeklySummary () {
   `
 }
 
+// fixed status order for snapshot
+const FIXED_STATUSES = ['Enquiry', 'Quote', 'Approval', 'Committed']
+
+function renderMonthlySummary () {
+  if (!monthlySummaryContainer) return
+
+  const monthFilter = summaryMonthInput?.value || ''
+
+  // 1) Open deals snapshot (still open now)
+  const openDeals = allDeals.filter(d => !d.closedDate)
+
+  // 2) Closed this month (Lost / Invoiced for the selected month)
+  let closedForMonth = allDeals.filter(d => d.closedDate)
+  if (monthFilter) {
+    closedForMonth = closedForMonth.filter(
+      d => d.closedDate && d.closedDate.startsWith(monthFilter)
+    )
+  }
+
+  // Per-salesperson summary
+  const summary = {} // name -> { statusValues, lostCount, lostValue, invoicedCount, invoicedValue }
+
+  function ensurePerson (name) {
+    if (!summary[name]) {
+      summary[name] = {
+        statusValues: {
+          Enquiry: { count: 0, value: 0 },
+          Quote: { count: 0, value: 0 },
+          Approval: { count: 0, value: 0 },
+          Committed: { count: 0, value: 0 }
+        },
+        lostCount: 0,
+        lostValue: 0,
+        invoicedCount: 0,
+        invoicedValue: 0
+      }
+    }
+  }
+
+  // Open deals: accumulate value per status
+  openDeals.forEach(deal => {
+    const name = deal.technician || 'Unknown'
+    ensurePerson(name)
+
+    const st = FIXED_STATUSES.includes(deal.status) ? deal.status : null
+    const val = typeof deal.value === 'number' ? deal.value : 0
+
+    if (st) {
+      summary[name].statusValues[st].count += 1
+      summary[name].statusValues[st].value += val
+    }
+  })
+
+  // Closed this month: Lost / Invoiced
+  closedForMonth.forEach(deal => {
+    const name = deal.technician || 'Unknown'
+    ensurePerson(name)
+    const val = typeof deal.value === 'number' ? deal.value : 0
+
+    if (deal.closedOutcome === 'Lost') {
+      summary[name].lostCount += 1
+      summary[name].lostValue += val
+    } else if (deal.closedOutcome === 'Invoiced') {
+      summary[name].invoicedCount += 1
+      summary[name].invoicedValue += val
+    }
+  })
+
+  const salespeople = Object.keys(summary).sort()
+  if (salespeople.length === 0) {
+    monthlySummaryContainer.innerHTML =
+      "<p class='text-muted'>No deals found.</p>"
+    return
+  }
+
+  // Grand totals
+  const grandStatusTotals = {
+    Enquiry: { count: 0, value: 0 },
+    Quote: { count: 0, value: 0 },
+    Approval: { count: 0, value: 0 },
+    Committed: { count: 0, value: 0 }
+  }
+  let grandLostCount = 0
+  let grandLostValue = 0
+  let grandInvCount = 0
+  let grandInvValue = 0
+
+  // 🔴 THIS is the header we care about: add the tags here
+  const statusHeaders = FIXED_STATUSES
+    .map(
+      st => `
+      <th class="text-center">
+        <span class="status-tag status-${st}"></span>${st}
+      </th>
+    `
+    )
+    .join('')
+
+  const header = `
+    <h5 class="mb-3">Monthly snapshot</h5>
+    <div class="table-responsive">
+      <table class="table table-bordered table-sm">
+        <thead class="table-light">
+          <tr>
+            <th>Salesperson</th>
+            ${statusHeaders}
+            <th class="text-center">
+              <span class="status-tag status-Lost"></span>Lost (this month)
+            </th>
+            <th class="text-center">
+              <span class="status-tag status-Invoiced"></span>Invoiced (this month)
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+  `
+
+  // Rows
+  let rows = ''
+
+  salespeople.forEach(name => {
+    const s = summary[name]
+
+    FIXED_STATUSES.forEach(st => {
+      grandStatusTotals[st].count += s.statusValues[st].count
+      grandStatusTotals[st].value += s.statusValues[st].value
+    })
+
+    grandLostCount += s.lostCount
+    grandLostValue += s.lostValue
+    grandInvCount += s.invoicedCount
+    grandInvValue += s.invoicedValue
+
+    const statusCells = FIXED_STATUSES
+      .map(st => {
+        const cell = s.statusValues[st]
+        return cell.value
+          ? `<td class="text-end">
+               ${formatCurrency(cell.value)}
+               <div class="small text-muted">(${cell.count})</div>
+             </td>`
+          : '<td></td>'
+      })
+      .join('')
+
+    rows += `
+      <tr>
+        <td>${name}</td>
+        ${statusCells}
+        <td class="text-end">
+          ${
+            s.lostValue ? formatCurrency(s.lostValue) : ''
+          }${s.lostCount ? `<div class="small text-muted">(${s.lostCount})</div>` : ''}
+        </td>
+        <td class="text-end">
+          ${
+            s.invoicedValue ? formatCurrency(s.invoicedValue) : ''
+          }${
+      s.invoicedCount
+        ? `<div class="small text-muted">(${s.invoicedCount})</div>`
+        : ''
+    }
+        </td>
+      </tr>
+    `
+  })
+
+  const grandCells = FIXED_STATUSES
+    .map(st => {
+      const g = grandStatusTotals[st]
+      return g.value
+        ? `<td class="fw-bold text-end">
+             ${formatCurrency(g.value)}
+             <div class="small text-muted">(${g.count})</div>
+           </td>`
+        : '<td></td>'
+    })
+    .join('')
+
+  const footer = `
+      <tr class="fw-bold">
+        <td>Grand total</td>
+        ${grandCells}
+        <td class="text-end">
+          ${grandLostValue ? formatCurrency(grandLostValue) : ''}
+          ${grandLostCount ? `<div class="small text-muted">(${grandLostCount})</div>` : ''}
+        </td>
+        <td class="text-end">
+          ${grandInvValue ? formatCurrency(grandInvValue) : ''}
+          ${grandInvCount ? `<div class="small text-muted">(${grandInvCount})</div>` : ''}
+        </td>
+      </tr>
+        </tbody>
+      </table>
+    </div>
+  `
+
+  monthlySummaryContainer.innerHTML = header + rows + footer
+}
+
 // ---- EVENT HANDLERS ----
 
 // Filter by salesperson
@@ -643,7 +846,10 @@ if (employeeForm && employeeNameInput) {
 
 // Month filter in summary tab
 if (summaryMonthInput) {
-  summaryMonthInput.addEventListener('change', renderWeeklySummary)
+  summaryMonthInput.addEventListener('change', () => {
+    renderWeeklySummary()
+    renderMonthlySummary()
+  })
 }
 
 // ---- INITIAL LOAD ----
