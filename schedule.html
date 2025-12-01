@@ -121,11 +121,25 @@
             margin-right: 6px;
         }
 
+        .booking-block.dragging {
+            opacity: 0.5;           /* optional: visual feedback */
+            pointer-events: none;   /* key: let the mouse "see through" the block */
+        }
+
         .schedule-slot.drop-target {
             outline: 2px dashed rgba(0, 123, 255, 0.6);
             outline-offset: -2px;
             background-color: rgba(0, 123, 255, 0.05); /* Optional: Adds a faint blue tint */
             z-index: 10; /* Ensures the outline sits on top of borders */
+        }
+        .schedule-slot {
+            position: relative;
+        }
+
+        /* Add this to your stylesheet */
+        .booking-block.is-dragging {
+            opacity: 0.01; /* Make it almost invisible so you see the slots underneath */
+            pointer-events: none; /* CRITICAL: Allows mouse to "see through" to the slots */
         }
 
 /* ... rest of your css ... */
