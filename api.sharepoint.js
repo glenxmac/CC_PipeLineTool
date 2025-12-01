@@ -210,12 +210,10 @@ export async function deleteDeal (id) {
 // map Salespeople list item to { id, name, role }
 function listItemToEmployee (item) {
   const f = item.fields
-  const name = f.Title || f.Name || ''
-  const role = f.Role || '' // SharePoint choice column "Role"
   return {
     id: Number(item.id),
-    name,
-    role
+    name: f.Title || '',
+    role: f.Role || 'Salesperson'
   }
 }
 
