@@ -438,7 +438,11 @@ function getIsoWeek (dateStr) {
 
 function buildWeeklySummary (deals, monthFilterStr) {
   const filtered = monthFilterStr
-    ? deals.filter(d => d.openDate && d.openDate.startsWith(monthFilterStr))
+    ? deals.filter(d => {
+      if (!d.openDate) return false
+      const dealMonth = getMonthKeyFromDate(d.openDate) // -> "YYYY-MM"
+      return dealMonth === monthFilterStr
+    })
     : deals
 
   const matrix = {}
