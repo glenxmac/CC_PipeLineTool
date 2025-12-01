@@ -622,7 +622,7 @@ if (bookingForm) {
       mechanic: bookingMechanicSelect.value,
       serviceType,
       startTime: bookingStartTimeSelect.value,
-      durationHours,
+      duration: durationHours,
       customerLabel: bookingCustomerInput.value.trim(),
       notes: bookingNotesInput.value.trim()
     }

@@ -290,7 +290,7 @@ export async function createWorkshopBooking (booking) {
     Mechanic: booking.mechanic,
     ServiceType: booking.serviceType,
     StartTime: booking.startTime,
-    // DurationHours: duration,
+    DurationHours: duration,
     CustomerLabel: booking.customerLabel,
     Notes: booking.notes
   }
