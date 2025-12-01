@@ -525,15 +525,19 @@ function renderWeeklySummary () {
 }
 
 function getMonthKeyFromDate (dateStr) {
-  // '2025-11-28' -> '2025-11'
-  if (!dateStr || dateStr.length < 7) return null
-  return dateStr.slice(0, 7)
+  if (!dateStr) return null
+  const d = new Date(dateStr)
+  if (Number.isNaN(d.getTime())) return null
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  return `${y}-${m}` // e.g. "2025-11"
 }
 
 function getCurrentMonthKey () {
   const now = new Date()
+  const y = now.getFullYear()
   const m = String(now.getMonth() + 1).padStart(2, '0')
-  return `${now.getFullYear()}-${m}` // e.g. '2025-11'
+  return `${y}-${m}`
 }
 
 // fixed status order for snapshot
@@ -545,18 +549,30 @@ function renderMonthlySummary () {
   const monthFilter = summaryMonthInput?.value || ''
   const baseMonth = monthFilter || getCurrentMonthKey()
 
-  // -------------- HOT MODE: current month + closed (as-is) --------------
+  // -------------- HOT MODE: current month + HOT pipeline + closed --------------
   if (monthlyMode === 'hot') {
-    // 1) Open deals snapshot (still open now)
-    const openDeals = allDeals.filter(d => !d.closeDate)
+    // HOT open deals in the selected month
+    const openDeals = allDeals.filter(d => {
+      if (d.closeDate) return false
+      if (!d.openDate) return false
 
-    // 2) Closed this month (Lost / Invoiced for the selected month)
+      const dealMonth = getMonthKeyFromDate(d.openDate)
+      if (!dealMonth) return false
+
+      // only this month
+      if (dealMonth !== baseMonth) return false
+
+      const urg = (d.urgency || 'Hot').toLowerCase()
+      return urg === 'hot'
+    })
+
+    // Closed this month (Lost / Invoiced in the selected month)
     let closedForMonth = allDeals.filter(d => d.closeDate)
-    if (monthFilter) {
-      closedForMonth = closedForMonth.filter(
-        d => d.closeDate && d.closeDate.startsWith(monthFilter)
-      )
-    }
+    closedForMonth = closedForMonth.filter(d => {
+      if (!d.closeDate) return false
+      const closeMonth = getMonthKeyFromDate(d.closeDate)
+      return closeMonth === baseMonth
+    })
 
     const summary = {} // name -> { statusValues, lostCount, lostValue, invoicedCount, invoicedValue }
 
@@ -577,7 +593,7 @@ function renderMonthlySummary () {
       }
     }
 
-    // Open deals: accumulate value per status
+    // Open HOT deals: accumulate value per status
     openDeals.forEach(deal => {
       const name = deal.technician || 'Unknown'
       ensurePerson(name)
@@ -591,7 +607,7 @@ function renderMonthlySummary () {
       }
     })
 
-    // Closed this month: Lost / Invoiced
+    // Closed this month: Lost / Invoiced (regardless of urgency)
     closedForMonth.forEach(deal => {
       const name = deal.technician || 'Unknown'
       ensurePerson(name)
@@ -609,7 +625,7 @@ function renderMonthlySummary () {
     const salespeople = Object.keys(summary).sort()
     if (salespeople.length === 0) {
       monthlySummaryContainer.innerHTML =
-        "<p class='text-muted'>No deals found.</p>"
+        "<p class='text-muted'>No hot deals for this month.</p>"
       return
     }
 
@@ -686,18 +702,16 @@ function renderMonthlySummary () {
           <td>${name}</td>
           ${statusCells}
           <td class="text-end">
-            ${
-              s.lostValue ? formatCurrency(s.lostValue) : ''
-            }${s.lostCount ? `<div class="small text-muted">(${s.lostCount})</div>` : ''}
+            ${s.lostValue ? formatCurrency(s.lostValue) : ''}
+            ${s.lostCount ? `<div class="small text-muted">(${s.lostCount})</div>` : ''}
           </td>
           <td class="text-end">
+            ${s.invoicedValue ? formatCurrency(s.invoicedValue) : ''}
             ${
-              s.invoicedValue ? formatCurrency(s.invoicedValue) : ''
-            }${
-        s.invoicedCount
-          ? `<div class="small text-muted">(${s.invoicedCount})</div>`
-          : ''
-      }
+              s.invoicedCount
+                ? `<div class="small text-muted">(${s.invoicedCount})</div>`
+                : ''
+            }
           </td>
         </tr>
       `
@@ -738,23 +752,26 @@ function renderMonthlySummary () {
   }
 
   // -------------- WARM / COLD MODES: FUTURE PIPELINE --------------
-  const targetUrgency = monthlyMode === 'warm' ? 'Warm' : 'Cold'
+  const targetUrgency = monthlyMode === 'warm' ? 'warm' : 'cold'
 
   // future = open date month strictly after the selected (or current) month
   const futureDeals = allDeals.filter(d => {
     if (d.closeDate) return false
     if (!d.openDate) return false
+
     const dealMonth = getMonthKeyFromDate(d.openDate)
     if (!dealMonth) return false
+
+    // strictly after base month
     if (dealMonth <= baseMonth) return false
 
     const urg = (d.urgency || '').toLowerCase()
-    return urg === targetUrgency.toLowerCase()
+    return urg === targetUrgency
   })
 
   if (!futureDeals.length) {
     monthlySummaryContainer.innerHTML =
-      `<p class='text-muted'>No ${targetUrgency.toLowerCase()} future deals found.</p>`
+      `<p class='text-muted'>No ${targetUrgency} future deals found.</p>`
     return
   }
 
@@ -804,7 +821,7 @@ function renderMonthlySummary () {
 
   const header = `
     <h5 class="mb-3">
-      Future pipeline – ${targetUrgency} deals (after ${baseMonth})
+      Future pipeline – ${targetUrgency.charAt(0).toUpperCase() + targetUrgency.slice(1)} deals (after ${baseMonth})
     </h5>
     <div class="table-responsive">
       <table class="table table-bordered table-sm">
