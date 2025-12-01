@@ -562,7 +562,7 @@ function renderMonthlySummary () {
       // only this month
       if (dealMonth !== baseMonth) return false
 
-      const urg = (d.urgency || 'Hot').toLowerCase()
+      const urg = (d.urgency || 'Hot')
       return urg === 'Hot'
     })
 
@@ -765,7 +765,7 @@ function renderMonthlySummary () {
     // strictly after base month
     if (dealMonth <= baseMonth) return false
 
-    const urg = (d.urgency || '').toLowerCase()
+    const urg = (d.urgency || '')
     return urg === targetUrgency
   })
 
