@@ -282,7 +282,7 @@ export async function getWorkshopBookings () {
 }
 
 export async function createWorkshopBooking (booking) {
-  const duration = booking.durationHours
+  const duration = booking.duration
 
   const fields = {
     Title: booking.customerLabel || booking.serviceType || 'Workshop booking',
