@@ -68,6 +68,14 @@ const newNoteInput = document.getElementById('newNote')
 const summaryMonthInput = document.getElementById('summaryMonth')
 const summaryContent = document.getElementById('summaryContent')
 const monthlySummaryContainer = document.getElementById('monthlySummaryContainer')
+const monthlyModeTabs = document.getElementById('monthlyModeTabs')
+
+// ---- STATE ----
+let allDeals = []
+let allEmployees = []
+
+let selectedStatusFilter = ''
+let monthlyMode = 'hot' // 'hot' | 'warm' | 'cold'
 
 // Closed Deals tab
 const closedDealsTableBody = document.querySelector('#closedDealsTable tbody')
@@ -90,13 +98,6 @@ const closedStatusFilter = document.getElementById('closedStatusFilter')
 const employeeForm = document.getElementById('employeeForm')
 const employeeNameInput = document.getElementById('employeeName')
 const employeesTableBody = document.querySelector('#employeesTable tbody')
-
-// ---- STATE ----
-let allDeals = []
-let allEmployees = []
-
-// currently selected status filter from the cards ("" = all)
-let selectedStatusFilter = ''
 
 // ---- LOAD EVERYTHING ----
 
@@ -523,6 +524,18 @@ function renderWeeklySummary () {
   `
 }
 
+function getMonthKeyFromDate (dateStr) {
+  // '2025-11-28' -> '2025-11'
+  if (!dateStr || dateStr.length < 7) return null
+  return dateStr.slice(0, 7)
+}
+
+function getCurrentMonthKey () {
+  const now = new Date()
+  const m = String(now.getMonth() + 1).padStart(2, '0')
+  return `${now.getFullYear()}-${m}` // e.g. '2025-11'
+}
+
 // fixed status order for snapshot
 const FIXED_STATUSES = ['Enquiry', 'Quote', 'Approval', 'Committed']
 
@@ -530,87 +543,255 @@ function renderMonthlySummary () {
   if (!monthlySummaryContainer) return
 
   const monthFilter = summaryMonthInput?.value || ''
+  const baseMonth = monthFilter || getCurrentMonthKey()
 
-  // 1) Open deals snapshot (still open now)
-  const openDeals = allDeals.filter(d => !d.closeDate)
+  // -------------- HOT MODE: current month + closed (as-is) --------------
+  if (monthlyMode === 'hot') {
+    // 1) Open deals snapshot (still open now)
+    const openDeals = allDeals.filter(d => !d.closeDate)
 
-  // 2) Closed this month (Lost / Invoiced for the selected month)
-  let closedForMonth = allDeals.filter(d => d.closeDate)
-  if (monthFilter) {
-    closedForMonth = closedForMonth.filter(
-      d => d.closeDate && d.closeDate.startsWith(monthFilter)
-    )
+    // 2) Closed this month (Lost / Invoiced for the selected month)
+    let closedForMonth = allDeals.filter(d => d.closeDate)
+    if (monthFilter) {
+      closedForMonth = closedForMonth.filter(
+        d => d.closeDate && d.closeDate.startsWith(monthFilter)
+      )
+    }
+
+    const summary = {} // name -> { statusValues, lostCount, lostValue, invoicedCount, invoicedValue }
+
+    function ensurePerson (name) {
+      if (!summary[name]) {
+        summary[name] = {
+          statusValues: {
+            Enquiry: { count: 0, value: 0 },
+            Quote: { count: 0, value: 0 },
+            Approval: { count: 0, value: 0 },
+            Committed: { count: 0, value: 0 }
+          },
+          lostCount: 0,
+          lostValue: 0,
+          invoicedCount: 0,
+          invoicedValue: 0
+        }
+      }
+    }
+
+    // Open deals: accumulate value per status
+    openDeals.forEach(deal => {
+      const name = deal.technician || 'Unknown'
+      ensurePerson(name)
+
+      const st = FIXED_STATUSES.includes(deal.status) ? deal.status : null
+      const val = typeof deal.value === 'number' ? deal.value : 0
+
+      if (st) {
+        summary[name].statusValues[st].count += 1
+        summary[name].statusValues[st].value += val
+      }
+    })
+
+    // Closed this month: Lost / Invoiced
+    closedForMonth.forEach(deal => {
+      const name = deal.technician || 'Unknown'
+      ensurePerson(name)
+      const val = typeof deal.value === 'number' ? deal.value : 0
+
+      if (deal.closedOutcome === 'Lost') {
+        summary[name].lostCount += 1
+        summary[name].lostValue += val
+      } else if (deal.closedOutcome === 'Invoiced') {
+        summary[name].invoicedCount += 1
+        summary[name].invoicedValue += val
+      }
+    })
+
+    const salespeople = Object.keys(summary).sort()
+    if (salespeople.length === 0) {
+      monthlySummaryContainer.innerHTML =
+        "<p class='text-muted'>No deals found.</p>"
+      return
+    }
+
+    // Grand totals
+    const grandStatusTotals = {
+      Enquiry: { count: 0, value: 0 },
+      Quote: { count: 0, value: 0 },
+      Approval: { count: 0, value: 0 },
+      Committed: { count: 0, value: 0 }
+    }
+    let grandLostCount = 0
+    let grandLostValue = 0
+    let grandInvCount = 0
+    let grandInvValue = 0
+
+    const statusHeaders = FIXED_STATUSES
+      .map(
+        st => `
+        <th class="text-center">
+          <span class="status-tag status-${st}"></span>${st}
+        </th>
+      `
+      )
+      .join('')
+
+    const header = `
+      <h5 class="mb-3">Monthly snapshot – Hot (this month)</h5>
+      <div class="table-responsive">
+        <table class="table table-bordered table-sm">
+          <thead class="table-light">
+            <tr>
+              <th>Salesperson</th>
+              ${statusHeaders}
+              <th class="text-center">
+                <span class="status-tag status-Lost"></span>Lost (this month)
+              </th>
+              <th class="text-center">
+                <span class="status-tag status-Invoiced"></span>Invoiced (this month)
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+    `
+
+    let rows = ''
+
+    salespeople.forEach(name => {
+      const s = summary[name]
+
+      FIXED_STATUSES.forEach(st => {
+        grandStatusTotals[st].count += s.statusValues[st].count
+        grandStatusTotals[st].value += s.statusValues[st].value
+      })
+
+      grandLostCount += s.lostCount
+      grandLostValue += s.lostValue
+      grandInvCount += s.invoicedCount
+      grandInvValue += s.invoicedValue
+
+      const statusCells = FIXED_STATUSES
+        .map(st => {
+          const cell = s.statusValues[st]
+          return cell.value
+            ? `<td class="text-end">
+                 ${formatCurrency(cell.value)}
+                 <div class="small text-muted">(${cell.count})</div>
+               </td>`
+            : '<td></td>'
+        })
+        .join('')
+
+      rows += `
+        <tr>
+          <td>${name}</td>
+          ${statusCells}
+          <td class="text-end">
+            ${
+              s.lostValue ? formatCurrency(s.lostValue) : ''
+            }${s.lostCount ? `<div class="small text-muted">(${s.lostCount})</div>` : ''}
+          </td>
+          <td class="text-end">
+            ${
+              s.invoicedValue ? formatCurrency(s.invoicedValue) : ''
+            }${
+        s.invoicedCount
+          ? `<div class="small text-muted">(${s.invoicedCount})</div>`
+          : ''
+      }
+          </td>
+        </tr>
+      `
+    })
+
+    const grandCells = FIXED_STATUSES
+      .map(st => {
+        const g = grandStatusTotals[st]
+        return g.value
+          ? `<td class="fw-bold text-end">
+               ${formatCurrency(g.value)}
+               <div class="small text-muted">(${g.count})</div>
+             </td>`
+          : '<td></td>'
+      })
+      .join('')
+
+    const footer = `
+        <tr class="fw-bold">
+          <td>Grand total</td>
+          ${grandCells}
+          <td class="text-end">
+            ${grandLostValue ? formatCurrency(grandLostValue) : ''}
+            ${grandLostCount ? `<div class="small text-muted">(${grandLostCount})</div>` : ''}
+          </td>
+          <td class="text-end">
+            ${grandInvValue ? formatCurrency(grandInvValue) : ''}
+            ${grandInvCount ? `<div class="small text-muted">(${grandInvCount})</div>` : ''}
+          </td>
+        </tr>
+          </tbody>
+        </table>
+      </div>
+    `
+
+    monthlySummaryContainer.innerHTML = header + rows + footer
+    return
   }
 
-  // Per-salesperson summary
-  const summary = {} // name -> { statusValues, lostCount, lostValue, invoicedCount, invoicedValue }
+  // -------------- WARM / COLD MODES: FUTURE PIPELINE --------------
+  const targetUrgency = monthlyMode === 'warm' ? 'Warm' : 'Cold'
 
-  function ensurePerson (name) {
+  // future = open date month strictly after the selected (or current) month
+  const futureDeals = allDeals.filter(d => {
+    if (d.closeDate) return false
+    if (!d.openDate) return false
+    const dealMonth = getMonthKeyFromDate(d.openDate)
+    if (!dealMonth) return false
+    if (dealMonth <= baseMonth) return false
+
+    const urg = (d.urgency || '').toLowerCase()
+    return urg === targetUrgency.toLowerCase()
+  })
+
+  if (!futureDeals.length) {
+    monthlySummaryContainer.innerHTML =
+      `<p class='text-muted'>No ${targetUrgency.toLowerCase()} future deals found.</p>`
+    return
+  }
+
+  const summary = {} // name -> { statusValues }
+
+  function ensureFuturePerson (name) {
     if (!summary[name]) {
       summary[name] = {
-        statusValues: {
-          Enquiry: { count: 0, value: 0 },
-          Quote: { count: 0, value: 0 },
-          Approval: { count: 0, value: 0 },
-          Committed: { count: 0, value: 0 }
-        },
-        lostCount: 0,
-        lostValue: 0,
-        invoicedCount: 0,
-        invoicedValue: 0
+        Enquiry: { count: 0, value: 0 },
+        Quote: { count: 0, value: 0 },
+        Approval: { count: 0, value: 0 },
+        Committed: { count: 0, value: 0 }
       }
     }
   }
 
-  // Open deals: accumulate value per status
-  openDeals.forEach(deal => {
+  futureDeals.forEach(deal => {
     const name = deal.technician || 'Unknown'
-    ensurePerson(name)
+    ensureFuturePerson(name)
 
     const st = FIXED_STATUSES.includes(deal.status) ? deal.status : null
     const val = typeof deal.value === 'number' ? deal.value : 0
 
     if (st) {
-      summary[name].statusValues[st].count += 1
-      summary[name].statusValues[st].value += val
-    }
-  })
-
-  // Closed this month: Lost / Invoiced
-  closedForMonth.forEach(deal => {
-    const name = deal.technician || 'Unknown'
-    ensurePerson(name)
-    const val = typeof deal.value === 'number' ? deal.value : 0
-
-    if (deal.closedOutcome === 'Lost') {
-      summary[name].lostCount += 1
-      summary[name].lostValue += val
-    } else if (deal.closedOutcome === 'Invoiced') {
-      summary[name].invoicedCount += 1
-      summary[name].invoicedValue += val
+      summary[name][st].count += 1
+      summary[name][st].value += val
     }
   })
 
   const salespeople = Object.keys(summary).sort()
-  if (salespeople.length === 0) {
-    monthlySummaryContainer.innerHTML =
-      "<p class='text-muted'>No deals found.</p>"
-    return
-  }
-
-  // Grand totals
   const grandStatusTotals = {
     Enquiry: { count: 0, value: 0 },
     Quote: { count: 0, value: 0 },
     Approval: { count: 0, value: 0 },
     Committed: { count: 0, value: 0 }
   }
-  let grandLostCount = 0
-  let grandLostValue = 0
-  let grandInvCount = 0
-  let grandInvValue = 0
 
-  // 🔴 THIS is the header we care about: add the tags here
   const statusHeaders = FIXED_STATUSES
     .map(
       st => `
@@ -622,43 +803,33 @@ function renderMonthlySummary () {
     .join('')
 
   const header = `
-    <h5 class="mb-3">Monthly snapshot</h5>
+    <h5 class="mb-3">
+      Future pipeline – ${targetUrgency} deals (after ${baseMonth})
+    </h5>
     <div class="table-responsive">
       <table class="table table-bordered table-sm">
         <thead class="table-light">
           <tr>
             <th>Salesperson</th>
             ${statusHeaders}
-            <th class="text-center">
-              <span class="status-tag status-Lost"></span>Lost (this month)
-            </th>
-            <th class="text-center">
-              <span class="status-tag status-Invoiced"></span>Invoiced (this month)
-            </th>
           </tr>
         </thead>
         <tbody>
   `
 
-  // Rows
   let rows = ''
 
   salespeople.forEach(name => {
     const s = summary[name]
 
     FIXED_STATUSES.forEach(st => {
-      grandStatusTotals[st].count += s.statusValues[st].count
-      grandStatusTotals[st].value += s.statusValues[st].value
+      grandStatusTotals[st].count += s[st].count
+      grandStatusTotals[st].value += s[st].value
     })
-
-    grandLostCount += s.lostCount
-    grandLostValue += s.lostValue
-    grandInvCount += s.invoicedCount
-    grandInvValue += s.invoicedValue
 
     const statusCells = FIXED_STATUSES
       .map(st => {
-        const cell = s.statusValues[st]
+        const cell = s[st]
         return cell.value
           ? `<td class="text-end">
                ${formatCurrency(cell.value)}
@@ -672,20 +843,6 @@ function renderMonthlySummary () {
       <tr>
         <td>${name}</td>
         ${statusCells}
-        <td class="text-end">
-          ${
-            s.lostValue ? formatCurrency(s.lostValue) : ''
-          }${s.lostCount ? `<div class="small text-muted">(${s.lostCount})</div>` : ''}
-        </td>
-        <td class="text-end">
-          ${
-            s.invoicedValue ? formatCurrency(s.invoicedValue) : ''
-          }${
-      s.invoicedCount
-        ? `<div class="small text-muted">(${s.invoicedCount})</div>`
-        : ''
-    }
-        </td>
       </tr>
     `
   })
@@ -706,14 +863,6 @@ function renderMonthlySummary () {
       <tr class="fw-bold">
         <td>Grand total</td>
         ${grandCells}
-        <td class="text-end">
-          ${grandLostValue ? formatCurrency(grandLostValue) : ''}
-          ${grandLostCount ? `<div class="small text-muted">(${grandLostCount})</div>` : ''}
-        </td>
-        <td class="text-end">
-          ${grandInvValue ? formatCurrency(grandInvValue) : ''}
-          ${grandInvCount ? `<div class="small text-muted">(${grandInvCount})</div>` : ''}
-        </td>
       </tr>
         </tbody>
       </table>
@@ -1020,6 +1169,22 @@ if (employeeForm && employeeNameInput) {
 if (summaryMonthInput) {
   summaryMonthInput.addEventListener('change', () => {
     renderWeeklySummary()
+    renderMonthlySummary()
+  })
+}
+
+if (monthlyModeTabs) {
+  monthlyModeTabs.addEventListener('click', e => {
+    const btn = e.target.closest('button[data-mode]')
+    if (!btn) return
+
+    monthlyMode = btn.dataset.mode // 'hot' | 'warm' | 'cold'
+
+    // toggle active class
+    monthlyModeTabs
+      .querySelectorAll('button[data-mode]')
+      .forEach(b => b.classList.toggle('active', b === btn))
+
     renderMonthlySummary()
   })
 }

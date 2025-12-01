@@ -114,11 +114,32 @@
         </div>
 
         <div id="summaryContent">
-          <!-- JS will render a pivot-style table: Salesperson vs Week -->
+            <!-- JS will render a pivot-style table: Salesperson vs Week -->
         </div>
 
-        <div class="mt-4" id="monthlySummaryContainer">
-            <!-- JS will render monthly open / lost / invoiced summary here -->
+        <div class="mt-4">
+            <!-- Mode selector: Hot vs Warm vs Cold -->
+            <ul class="nav nav-pills mb-2" id="monthlyModeTabs">
+                <li class="nav-item">
+                <button class="nav-link active" type="button" data-mode="hot">
+                    Hot (this month)
+                </button>
+                </li>
+                <li class="nav-item">
+                <button class="nav-link" type="button" data-mode="warm">
+                    Warm – future
+                </button>
+                </li>
+                <li class="nav-item">
+                <button class="nav-link" type="button" data-mode="cold">
+                    Cold – future
+                </button>
+                </li>
+            </ul>
+
+            <div id="monthlySummaryContainer">
+                <!-- JS will render monthly / future pipeline summary here -->
+            </div>
         </div>
       </div>
 
