@@ -397,7 +397,10 @@
       integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
       crossorigin="anonymous"
     ></script>
+    <!-- MSAL (must be loaded so api.sharepoint.js can see `msal`) -->
+    <script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js"></script>
 
+    <!-- Schedule logic (ES module) -->
     <script type="module" src="schedule.js"></script>
   </body>
 </html>
