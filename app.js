@@ -554,13 +554,6 @@ function renderMonthlySummary () {
     // HOT open deals in the selected month
     const openDeals = allDeals.filter(d => {
       if (d.closeDate) return false
-      if (!d.openDate) return false
-
-      const dealMonth = getMonthKeyFromDate(d.openDate)
-      if (!dealMonth) return false
-
-      // only this month
-      if (dealMonth !== baseMonth) return false
 
       const urg = (d.urgency || 'Hot')
       return urg === 'Hot'
