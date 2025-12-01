@@ -7,7 +7,7 @@ import * as api from './api.sharepoint.js'
 // import * as api from './api.mock.js'
 
 // ------------------ state ------------------
-const mechanics = {}
+let mechanics = []
 // [{ id, date, mechanic, serviceType, startTime, durationHours, customerLabel, notes }]
 let bookings = []
 let currentWeekStart = getMonday(new Date()) // Date object (Monday of current week)
@@ -718,8 +718,8 @@ async function init () {
     // Mechanics from the Salespeople list
     const employees = await api.getEmployees()
 
-    // Only keep role === 'Mechanic'
-    const mechanics = employees
+    // Only keep role === 'Mechanic' and write into the global array
+    mechanics = employees
       .filter(e => e.role === 'Mechanic')
       .map(e => ({ id: e.id, name: e.name }))
 
