@@ -68,6 +68,16 @@ const bookingModalLabel = document.getElementById('bookingModalLabel')
 // Toast container (same idea as app.js)
 const toastContainer = document.getElementById('toastContainer')
 
+// --- time grid settings ---
+const DAY_START_HOUR = 8 // 08:00
+const DAY_END_HOUR = 18 // 18:00
+const SLOT_MINUTES = 30 // 30-min grid
+
+const TOTAL_MINUTES = (DAY_END_HOUR - DAY_START_HOUR) * 60
+const SLOTS_PER_DAY = TOTAL_MINUTES / SLOT_MINUTES
+
+const dragPreviewEl = null
+
 // ------------------ local storage helpers ------------------
 
 const STORAGE_KEY = 'cc_workshop_bookings_v1'
@@ -380,12 +390,21 @@ function renderWeek () {
 // ------------------ interaction handlers ------------------
 
 let handlersAttached = false
+// Global state to track the drag details (since dataTransfer is hidden in dragover)
+let dragGhostState = null
 
 function attachGridHandlers () {
   if (!scheduleGridContainer || handlersAttached) return
   handlersAttached = true
 
-  // Click handler for slots and booking blocks
+  // --- Helper: Clear all existing drop targets ---
+  const clearDropTargets = () => {
+    scheduleGridContainer.querySelectorAll('.drop-target').forEach(el => {
+      el.classList.remove('drop-target')
+    })
+  }
+
+  // Click handler (Unchanged)
   scheduleGridContainer.addEventListener('click', e => {
     const bookingBlock = e.target.closest('.booking-block')
     const slotCell = e.target.closest('.schedule-slot')
@@ -393,22 +412,17 @@ function attachGridHandlers () {
     if (bookingBlock) {
       const id = Number(bookingBlock.dataset.bookingId)
       const booking = bookings.find(b => b.id === id)
-      if (booking) {
-        openBookingModal(booking)
-      }
+      if (booking) openBookingModal(booking)
       return
     }
 
     if (slotCell) {
-      const date = slotCell.dataset.date
-      const mechanic = slotCell.dataset.mechanic
-      const time = slotCell.dataset.time
+      const { date, mechanic, time } = slotCell.dataset
       openBookingModal(null, { date, mechanic, startTime: time })
     }
   })
 
-  // Drag start
-  // Drag start – store booking id AND offset (how far from the top the mouse is)
+  // --- DRAG START ---
   scheduleGridContainer.addEventListener('dragstart', e => {
     const block = e.target.closest('.booking-block')
     if (!block) return
@@ -417,72 +431,113 @@ function attachGridHandlers () {
     const booking = bookings.find(b => b.id === id)
     if (!booking) return
 
-    // How many 30-min slots tall is this block?
+    // 1. Calculate how tall the block is (in slots)
     const span = Math.max(1, Math.round((booking.durationHours || 0.5) * 2))
 
+    // 2. Calculate offset (where did we click inside the block?)
     const rect = block.getBoundingClientRect()
-    const clickY = e.clientY
-    const relY = (clickY - rect.top) / rect.height
-    // Approximate how many slots down from the top we clicked
+    const relY = (e.clientY - rect.top) / rect.height
     let offsetSlots = Math.round(relY * (span - 1))
+
+    // Clamp offset to stay within bounds
     if (offsetSlots < 0) offsetSlots = 0
     if (offsetSlots > span - 1) offsetSlots = span - 1
+
+    // 3. Save state globally for use in dragover
+    dragGhostState = { id, span, offsetSlots, booking }
 
     const payload = { id, offsetSlots }
     e.dataTransfer.setData('text/plain', JSON.stringify(payload))
     e.dataTransfer.effectAllowed = 'move'
   })
 
-  // Drag over / leave / drop on slots
+  // --- DRAG END ---
+  scheduleGridContainer.addEventListener('dragend', () => {
+    clearDropTargets()
+    dragGhostState = null
+  })
+
+  // --- DRAG OVER (The Ghost Logic) ---
   scheduleGridContainer.addEventListener('dragover', e => {
-    const slot = e.target.closest('.schedule-slot')
-    if (!slot) return
     e.preventDefault()
     e.dataTransfer.dropEffect = 'move'
-    slot.classList.add('drop-target')
+
+    const slot = e.target.closest('.schedule-slot')
+
+    // Safety check
+    if (!slot || !dragGhostState) {
+      clearDropTargets()
+      return
+    }
+
+    // 1. Where is the mouse currently?
+    const currentMechanic = slot.dataset.mechanic
+    const currentDate = slot.dataset.date
+    const dropIndex = TIME_SLOTS.indexOf(slot.dataset.time)
+
+    if (dropIndex === -1) return
+
+    // 2. Calculate the Start Time based on the mouse offset
+    // (e.g., if holding the bottom of the block, start time is higher up)
+    let startIndex = dropIndex - dragGhostState.offsetSlots
+    if (startIndex < 0) startIndex = 0
+
+    // 3. Clear previous shadows before drawing new ones
+    clearDropTargets()
+
+    // 4. Loop through the span and apply your CSS class
+    for (let i = 0; i < dragGhostState.span; i++) {
+      const timeIndex = startIndex + i
+
+      // Stop if we run past the end of the day
+      if (timeIndex >= TIME_SLOTS.length) break
+
+      const timeStr = TIME_SLOTS[timeIndex]
+
+      // Find the specific slot in the DOM
+      const targetSlot = scheduleGridContainer.querySelector(
+        `.schedule-slot[data-mechanic="${currentMechanic}"][data-date="${currentDate}"][data-time="${timeStr}"]`
+      )
+
+      if (targetSlot) {
+        // Apply your existing CSS class
+        targetSlot.classList.add('drop-target')
+      }
+    }
   })
 
+  // --- DRAG LEAVE ---
   scheduleGridContainer.addEventListener('dragleave', e => {
-    const slot = e.target.closest('.schedule-slot')
-    if (!slot) return
-    slot.classList.remove('drop-target')
+    // Only clear if leaving the grid container entirely
+    if (!scheduleGridContainer.contains(e.relatedTarget)) {
+      clearDropTargets()
+    }
   })
 
+  // --- DROP ---
   scheduleGridContainer.addEventListener('drop', e => {
+    e.preventDefault()
+    clearDropTargets()
+
     const slot = e.target.closest('.schedule-slot')
     if (!slot) return
-    e.preventDefault()
-    slot.classList.remove('drop-target')
 
     const raw = e.dataTransfer.getData('text/plain')
     if (!raw) return
 
     let payload
-    try {
-      payload = JSON.parse(raw)
-    } catch {
-    // fallback to old plain-id format
-      payload = { id: Number(raw), offsetSlots: 0 }
-    }
+    try { payload = JSON.parse(raw) } catch { payload = { id: Number(raw), offsetSlots: 0 } }
 
     const id = Number(payload.id)
     const offsetSlots = Number(payload.offsetSlots || 0)
-
     const booking = bookings.find(b => b.id === id)
     if (!booking) return
 
-    const dropTime = slot.dataset.time
-    const dropIndex = TIME_SLOTS.indexOf(dropTime)
+    const dropIndex = TIME_SLOTS.indexOf(slot.dataset.time)
     if (dropIndex === -1) return
 
-    // How many slots tall is the booking?
-    const span = Math.max(1, Math.round((booking.durationHours || 0.5) * 2))
-
-    // Align the TOP of the block to a slot, compensating for where the mouse was
     let newStartIndex = dropIndex - offsetSlots
     if (newStartIndex < 0) newStartIndex = 0
-
-    // Compute the final start time from the corrected index
     const newStartTime = TIME_SLOTS[newStartIndex]
 
     const updated = {
@@ -492,15 +547,12 @@ function attachGridHandlers () {
       startTime: newStartTime
     }
 
-    // Check day bounds
     if (!fitsInDay(updated)) {
-      showToast('Cannot move booking – outside working hours.', 'danger')
+      showToast('Outside working hours.', 'danger')
       return
     }
-
-    // Check overlap
     if (hasOverlap(updated, bookings)) {
-      showToast('Cannot move booking – overlaps with another job.', 'danger')
+      showToast('Overlaps with another job.', 'danger')
       return
     }
 

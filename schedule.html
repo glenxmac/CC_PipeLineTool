@@ -13,118 +13,122 @@
     />
 
     <style>
-    .schedule-toolbar {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        justify-content: space-between;
-        gap: 0.75rem;
-    }
+        .schedule-toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+        }
 
-    .schedule-week-label {
-        font-weight: 600;
-        font-size: 1rem;
-    }
+        .schedule-week-label {
+            font-weight: 600;
+            font-size: 1rem;
+        }
 
-    .schedule-grid-container {
-        margin-top: 1rem;
-    }
+        .schedule-grid-container {
+            margin-top: 1rem;
+        }
 
-    .day-section .day-header {
-        font-weight: 600;
-        margin-bottom: 0.25rem;
-    }
+        .day-section .day-header {
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
 
-    .schedule-grid {
-        border-collapse: collapse;
-        width: 100%;
-        font-size: 0.8rem;
-    }
+        .schedule-grid {
+            border-collapse: collapse;
+            width: 100%;
+            font-size: 0.8rem;
+        }
 
-    .schedule-grid th,
-    .schedule-grid td {
-        border: 1px solid #dee2e6;
-        padding: 0.15rem 0.25rem;
-        vertical-align: top;
-        position: relative;
-    }
+        .schedule-grid th,
+        .schedule-grid td {
+            border: 1px solid #dee2e6;
+            padding: 0.15rem 0.25rem;
+            vertical-align: top;
+            position: relative;
+        }
 
-    .schedule-grid thead th {
-        background-color: #f8f9fa;
-        text-align: center;
-        font-weight: 600;
-    }
+        .schedule-grid thead th {
+            background-color: #f8f9fa;
+            text-align: center;
+            font-weight: 600;
+        }
 
-    .time-col {
-        width: 60px;
-    }
+        .time-col {
+            width: 60px;
+        }
 
-    .time-cell {
-        white-space: nowrap;
-        background-color: #f8f9fa;
-        text-align: right;
-        padding-right: 0.5rem;
-    }
+        .time-cell {
+            white-space: nowrap;
+            background-color: #f8f9fa;
+            text-align: right;
+            padding-right: 0.5rem;
+        }
 
-    .mechanic-col {
-        min-width: 120px;
-    }
+        .mechanic-col {
+            min-width: 120px;
+        }
 
-    .schedule-slot {
-        height: 26px;
-        cursor: pointer;
-    }
+        .schedule-slot {
+            height: 26px;
+            cursor: pointer;
+        }
 
-    .booking-block {
-        width: 100%;
-        height: 100%;
-        font-size: 0.75rem;
-        padding: 2px 4px;
-        border-radius: 4px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
+        .booking-block {
+            width: 100%;
+            height: 100%;
+            font-size: 0.75rem;
+            padding: 2px 4px;
+            border-radius: 4px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
 
-    .booking-service-pro {
-        background-color: #0d6efd;
-        color: #fff;
-    }
+        .booking-service-pro {
+            background-color: #0d6efd;
+            color: #fff;
+        }
 
-    .booking-service-major {
-        background-color: #0dcaf0;
-        color: #000;
-    }
+        .booking-service-major {
+            background-color: #0dcaf0;
+            color: #000;
+        }
 
-    .booking-service-expert {
-        background-color: #20c997;
-        color: #000;
-    }
+        .booking-service-expert {
+            background-color: #20c997;
+            color: #000;
+        }
 
-    .booking-service-min {
-        background-color: #ffc107;
-        color: #000;
-    }
+        .booking-service-min {
+            background-color: #ffc107;
+            color: #000;
+        }
 
-    .schedule-legend span {
-        display: inline-flex;
-        align-items: center;
-        margin-right: 1rem;
-        font-size: 0.8rem;
-    }
+        .schedule-legend span {
+            display: inline-flex;
+            align-items: center;
+            margin-right: 1rem;
+            font-size: 0.8rem;
+        }
 
-    .schedule-legend .legend-color {
-        display: inline-block;
-        width: 14px;
-        height: 14px;
-        border-radius: 3px;
-        margin-right: 6px;
-    }
+        .schedule-legend .legend-color {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border-radius: 3px;
+            margin-right: 6px;
+        }
 
-    .schedule-slot.drop-target {
-        outline: 2px dashed rgba(0, 123, 255, 0.6);
-        outline-offset: -2px;
-    }
+        .schedule-slot.drop-target {
+            outline: 2px dashed rgba(0, 123, 255, 0.6);
+            outline-offset: -2px;
+            background-color: rgba(0, 123, 255, 0.05); /* Optional: Adds a faint blue tint */
+            z-index: 10; /* Ensures the outline sits on top of borders */
+        }
+
+/* ... rest of your css ... */
     </style>
   </head>
 
