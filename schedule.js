@@ -613,13 +613,16 @@ if (bookingForm) {
     const isEdit = !!idRaw
     const id = isEdit ? Number(idRaw) : undefined
 
+    const serviceType = bookingServiceTypeSelect.value
+    const durationHours = getDefaultDurationHours(serviceType)
+
     const booking = {
       id,
       date: bookingDateInput.value,
       mechanic: bookingMechanicSelect.value,
-      serviceType: bookingServiceTypeSelect.value,
+      serviceType,
       startTime: bookingStartTimeSelect.value,
-      durationHours: Number(bookingDurationSelect.value || 0),
+      durationHours,
       customerLabel: bookingCustomerInput.value.trim(),
       notes: bookingNotesInput.value.trim()
     }
@@ -722,6 +725,8 @@ async function init () {
     mechanics = employees
       .filter(e => e.role === 'Mechanic')
       .map(e => ({ id: e.id, name: e.name }))
+
+    console.log(mechanics)
 
     // Bookings from SharePoint
     bookings = await api.getWorkshopBookings()
