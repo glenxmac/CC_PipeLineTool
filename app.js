@@ -124,7 +124,9 @@ function renderEmployeesUI () {
 
 function renderClosedEmployeeFilter () {
   if (!closedEmployeeFilter) return
-  const names = allEmployees.map(e => e.name)
+
+  const salespeople = allEmployees.filter(e => e.role === 'Salesperson')
+  const names = salespeople.map(e => e.name)
 
   closedEmployeeFilter.innerHTML =
     '<option value="">All salespeople</option>' +
@@ -163,7 +165,9 @@ function renderEmployeesTable () {
 
 function renderSalespersonFilter () {
   if (!salespersonFilter) return
-  const names = allEmployees.map(e => e.name)
+
+  const salespeople = allEmployees.filter(e => e.role === 'Salesperson')
+  const names = salespeople.map(e => e.name)
 
   salespersonFilter.innerHTML =
     '<option value="">All salespeople</option>' +
@@ -172,7 +176,9 @@ function renderSalespersonFilter () {
 
 function renderTechnicianSelect () {
   if (!technicianSelect) return
-  const names = allEmployees.map(e => e.name)
+
+  const salespeople = allEmployees.filter(e => e.role === 'Salesperson')
+  const names = salespeople.map(e => e.name)
 
   technicianSelect.innerHTML =
     '<option value="">Select salesperson</option>' +
@@ -1164,14 +1170,25 @@ if (reopenDealBtn) {
 }
 
 // Employees tab: add salesperson
-if (employeeForm && employeeNameInput) {
+const employeeRoleInput = document.getElementById('employeeRole')
+
+if (employeeForm && employeeNameInput && employeeRoleInput) {
   employeeForm.addEventListener('submit', async e => {
     e.preventDefault()
+
     const name = employeeNameInput.value.trim()
-    if (!name) return
-    await api.createEmployee(name)
+    const role = employeeRoleInput.value
+
+    if (!name || !role) {
+      showToast('Please enter a name and select a role.', 'warning')
+      return
+    }
+
+    await api.createEmployee(name, role)
+
     allEmployees = await api.getEmployees()
     renderEmployeesUI()
+
     employeeForm.reset()
   })
 }

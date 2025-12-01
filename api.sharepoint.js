@@ -238,16 +238,14 @@ export async function getSalespeople () {
 }
 
 // createEmployee now optionally takes a role (default "Salesperson")
-export async function createEmployee (name, role = 'Salesperson') {
+export async function createEmployee (name, role) {
   const trimmed = name.trim()
-  if (!trimmed) {
-    throw new Error('Empty name')
-  }
+  if (!trimmed) throw new Error('Empty name')
 
   const body = {
     fields: {
       Title: trimmed,
-      Role: role // must match your SharePoint choice exactly
+      Role: role || 'Salesperson'
     }
   }
 

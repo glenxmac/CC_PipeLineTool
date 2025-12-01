@@ -214,16 +214,28 @@
       <div class="tab-pane fade" id="employeesTab" role="tabpanel">
         <div class="row mb-3">
           <div class="col-md-6">
-            <form id="employeeForm" class="row g-2">
-              <div class="col-8">
-                <input type="text" class="form-control" id="employeeName"
-                       placeholder="Salesperson name" required />
-              </div>
-              <div class="col-4">
-                <button class="btn btn-primary w-100" type="submit">
-                  Add salesperson
-                </button>
-              </div>
+            <form id="employeeForm" class="row g-2 mb-3">
+                <div class="col-md-6">
+                    <input
+                    type="text"
+                    id="employeeName"
+                    class="form-control"
+                    placeholder="Employee name"
+                    required
+                    />
+                </div>
+
+                <div class="col-md-4">
+                    <select id="employeeRole" class="form-select" required>
+                    <option value="">Select role</option>
+                    <option value="Salesperson">Salesperson</option>
+                    <option value="Mechanic">Mechanic</option>
+                    </select>
+                </div>
+
+                <div class="col-md-2">
+                    <button class="btn btn-primary w-100" type="submit">Add</button>
+                </div>
             </form>
           </div>
         </div>
