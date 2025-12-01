@@ -726,8 +726,6 @@ async function init () {
       .filter(e => e.role === 'Mechanic')
       .map(e => ({ id: e.id, name: e.name }))
 
-    console.log(mechanics)
-
     // Bookings from SharePoint
     bookings = await api.getWorkshopBookings()
 
