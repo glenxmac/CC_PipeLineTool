@@ -625,7 +625,7 @@ function renderMonthlySummary () {
     const salespeople = Object.keys(summary).sort()
     if (salespeople.length === 0) {
       monthlySummaryContainer.innerHTML =
-        "<p class='text-muted'>No hot deals for this month.</p>"
+        "<p class='text-muted'>No Hot deals for this month.</p>"
       return
     }
 
@@ -751,27 +751,19 @@ function renderMonthlySummary () {
     return
   }
 
-  // -------------- WARM / Cool MODES: FUTURE PIPELINE --------------
+  // -------------- WARM / COOL MODES: PIPELINE BY URGENCY --------------
   const targetUrgency = monthlyMode === 'Warm' ? 'Warm' : 'Cool'
 
-  // future = open date month strictly after the selected (or current) month
+  // All open deals with this urgency, regardless of month
   const futureDeals = allDeals.filter(d => {
     if (d.closeDate) return false
-    if (!d.openDate) return false
-
-    const dealMonth = getMonthKeyFromDate(d.openDate)
-    if (!dealMonth) return false
-
-    // strictly after base month
-    if (dealMonth <= baseMonth) return false
-
-    const urg = (d.urgency || '')
+    const urg = d.urgency || ''
     return urg === targetUrgency
   })
 
   if (!futureDeals.length) {
     monthlySummaryContainer.innerHTML =
-      `<p class='text-muted'>No ${targetUrgency} future deals found.</p>`
+    `<p class='text-muted'>No ${targetUrgency} pipeline deals found.</p>`
     return
   }
 
@@ -820,19 +812,19 @@ function renderMonthlySummary () {
     .join('')
 
   const header = `
-    <h5 class="mb-3">
-      Future pipeline – ${targetUrgency.charAt(0).toUpperCase() + targetUrgency.slice(1)} deals (after ${baseMonth})
-    </h5>
-    <div class="table-responsive">
-      <table class="table table-bordered table-sm">
-        <thead class="table-light">
-          <tr>
-            <th>Salesperson</th>
-            ${statusHeaders}
-          </tr>
-        </thead>
-        <tbody>
-  `
+  <h5 class="mb-3">
+    Pipeline – ${targetUrgency} deals (all open)
+  </h5>
+  <div class="table-responsive">
+    <table class="table table-bordered table-sm">
+      <thead class="table-light">
+        <tr>
+          <th>Salesperson</th>
+          ${statusHeaders}
+        </tr>
+      </thead>
+      <tbody>
+`
 
   let rows = ''
 
@@ -849,19 +841,19 @@ function renderMonthlySummary () {
         const cell = s[st]
         return cell.value
           ? `<td class="text-end">
-               ${formatCurrency(cell.value)}
-               <div class="small text-muted">(${cell.count})</div>
-             </td>`
+             ${formatCurrency(cell.value)}
+             <div class="small text-muted">(${cell.count})</div>
+           </td>`
           : '<td></td>'
       })
       .join('')
 
     rows += `
-      <tr>
-        <td>${name}</td>
-        ${statusCells}
-      </tr>
-    `
+    <tr>
+      <td>${name}</td>
+      ${statusCells}
+    </tr>
+  `
   })
 
   const grandCells = FIXED_STATUSES
@@ -869,22 +861,22 @@ function renderMonthlySummary () {
       const g = grandStatusTotals[st]
       return g.value
         ? `<td class="fw-bold text-end">
-             ${formatCurrency(g.value)}
-             <div class="small text-muted">(${g.count})</div>
-           </td>`
+           ${formatCurrency(g.value)}
+           <div class="small text-muted">(${g.count})</div>
+         </td>`
         : '<td></td>'
     })
     .join('')
 
   const footer = `
-      <tr class="fw-bold">
-        <td>Grand total</td>
-        ${grandCells}
-      </tr>
-        </tbody>
-      </table>
-    </div>
-  `
+    <tr class="fw-bold">
+      <td>Grand total</td>
+      ${grandCells}
+    </tr>
+      </tbody>
+    </table>
+  </div>
+`
 
   monthlySummaryContainer.innerHTML = header + rows + footer
 }
