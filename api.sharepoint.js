@@ -28,6 +28,8 @@ const GRAPH_DEALS_LIST_ID = '7a9d0573-f143-4314-b726-c8f0a7b8b2e7'
 // TODO: replace with the Id of your Salespeople list
 const GRAPH_EMP_LIST_ID = 'a3c95ce2-cbe9-4e23-8a9f-a58a128fead6'
 
+const GRAPH_WORKSHOP_LIST_ID = '0373b889-ee0b-4ec6-b22a-2308e7b56e5f'
+
 // ---- MSAL setup ----
 const msalInstance = new msal.PublicClientApplication(MSAL_CONFIG)
 
@@ -265,4 +267,95 @@ export async function createEmployee (name) {
   )
 
   return listItemToEmployee(item)
+}
+
+// ---------- WORKSHOP BOOKINGS (WorkshopBookings) ----------
+
+function listItemToWorkshopBooking (item) {
+  const f = item.fields
+  return {
+    id: Number(item.id),
+    date: f.BookingDate || null, // 'yyyy-MM-dd'
+    mechanic: f.Mechanic || '',
+    serviceType: f.ServiceType || '',
+    startTime: f.StartTime || '', // 'HH:mm'
+    durationHours: typeof f.DurationHours === 'number' ? f.DurationHours : 0,
+    customerLabel: f.CustomerLabel || f.Title || '',
+    notes: f.Notes || ''
+  }
+}
+
+export async function getWorkshopBookings () {
+  const data = await graphFetch(
+    `/sites/${GRAPH_SITE_ID}/lists/${GRAPH_WORKSHOP_LIST_ID}/items?expand=fields`
+  )
+  return data.value.map(listItemToWorkshopBooking)
+}
+
+export async function createWorkshopBooking (booking) {
+  const fields = {
+    Title: booking.customerLabel || booking.serviceType || 'Workshop booking',
+    BookingDate: booking.date, // 'yyyy-MM-dd'
+    Mechanic: booking.mechanic,
+    ServiceType: booking.serviceType,
+    StartTime: booking.startTime,
+    DurationHours: booking.durationHours,
+    CustomerLabel: booking.customerLabel,
+    Notes: booking.notes
+  }
+
+  const body = { fields }
+
+  const item = await graphFetch(
+    `/sites/${GRAPH_SITE_ID}/lists/${GRAPH_WORKSHOP_LIST_ID}/items`,
+    {
+      method: 'POST',
+      body: JSON.stringify(body)
+    }
+  )
+
+  return listItemToWorkshopBooking(item)
+}
+
+export async function updateWorkshopBooking (id, partial) {
+  const fieldsPatch = {}
+
+  if (partial.date !== undefined) fieldsPatch.BookingDate = partial.date
+  if (partial.mechanic !== undefined) fieldsPatch.Mechanic = partial.mechanic
+  if (partial.serviceType !== undefined) fieldsPatch.ServiceType = partial.serviceType
+  if (partial.startTime !== undefined) fieldsPatch.StartTime = partial.startTime
+  if (partial.durationHours !== undefined) fieldsPatch.DurationHours = partial.durationHours
+  if (partial.customerLabel !== undefined) {
+    fieldsPatch.CustomerLabel = partial.customerLabel
+    fieldsPatch.Title = partial.customerLabel
+  }
+  if (partial.notes !== undefined) fieldsPatch.Notes = partial.notes
+
+  if (Object.keys(fieldsPatch).length === 0) {
+    return getWorkshopBookingById(id)
+  }
+
+  await graphFetch(
+    `/sites/${GRAPH_SITE_ID}/lists/${GRAPH_WORKSHOP_LIST_ID}/items/${id}/fields`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify(fieldsPatch)
+    }
+  )
+
+  return getWorkshopBookingById(id)
+}
+
+async function getWorkshopBookingById (id) {
+  const item = await graphFetch(
+    `/sites/${GRAPH_SITE_ID}/lists/${GRAPH_WORKSHOP_LIST_ID}/items/${id}?expand=fields`
+  )
+  return listItemToWorkshopBooking(item)
+}
+
+export async function deleteWorkshopBooking (id) {
+  await graphFetch(
+    `/sites/${GRAPH_SITE_ID}/lists/${GRAPH_WORKSHOP_LIST_ID}/items/${id}`,
+    { method: 'DELETE' }
+  )
 }

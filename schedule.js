@@ -3,12 +3,17 @@
 /* global bootstrap */
 
 // For now, use the mock API. Later you can swap back to sharepoint:
-// import * as api from './api.sharepoint.js'
-import * as api from './api.mock.js'
+import * as api from './api.sharepoint.js'
+// import * as api from './api.mock.js'
 
 // ------------------ state ------------------
 
-let mechanics = [] // [{ id, name }]
+const EMPLOYEES = [
+  { id: 1, name: 'Brian' },
+  { id: 2, name: 'Sibs' },
+  { id: 3, name: 'Dallas' },
+  { id: 4, name: 'Bongs' }
+]
 // [{ id, date, mechanic, serviceType, startTime, durationHours, customerLabel, notes }]
 let bookings = []
 let currentWeekStart = getMonday(new Date()) // Date object (Monday of current week)
@@ -77,31 +82,6 @@ const TOTAL_MINUTES = (DAY_END_HOUR - DAY_START_HOUR) * 60
 const SLOTS_PER_DAY = TOTAL_MINUTES / SLOT_MINUTES
 
 const dragPreviewEl = null
-
-// ------------------ local storage helpers ------------------
-
-const STORAGE_KEY = 'cc_workshop_bookings_v1'
-
-function loadBookingsFromStorage () {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return []
-    const parsed = JSON.parse(raw)
-    if (!Array.isArray(parsed)) return []
-    return parsed
-  } catch (e) {
-    console.error('Failed to read bookings from storage', e)
-    return []
-  }
-}
-
-function saveBookingsToStorage () {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(bookings))
-  } catch (e) {
-    console.error('Failed to save bookings to storage', e)
-  }
-}
 
 // ------------------ date & time helpers ------------------
 
@@ -515,7 +495,7 @@ function attachGridHandlers () {
   })
 
   // --- DROP ---
-  scheduleGridContainer.addEventListener('drop', e => {
+  scheduleGridContainer.addEventListener('drop', async e => {
     e.preventDefault()
     clearDropTargets()
 
@@ -558,10 +538,15 @@ function attachGridHandlers () {
 
     const idx = bookings.findIndex(b => b.id === id)
     if (idx !== -1) {
-      bookings[idx] = updated
-      saveBookingsToStorage()
-      renderWeek()
-      showToast('Booking moved', 'success')
+      try {
+        const saved = await api.updateWorkshopBooking(id, updated)
+        bookings = bookings.map(b => (b.id === id ? saved : b))
+        renderWeek()
+        showToast('Booking moved', 'success')
+      } catch (err) {
+        console.error(err)
+        showToast('Could not move booking (SharePoint error).', 'danger')
+      }
     }
   })
 }
@@ -628,34 +613,26 @@ function openBookingModal (booking, defaults = {}) {
 // ------------------ form handlers ------------------
 
 if (bookingForm) {
-  bookingForm.addEventListener('submit', e => {
+  bookingForm.addEventListener('submit', async e => {
     e.preventDefault()
 
     const idRaw = bookingIdInput.value
     const isEdit = !!idRaw
-    const id = isEdit ? Number(idRaw) : Date.now()
-
-    const serviceType = bookingServiceTypeSelect.value
-    const durationHours = getDefaultDurationHours(serviceType)
+    const id = isEdit ? Number(idRaw) : undefined
 
     const booking = {
       id,
       date: bookingDateInput.value,
       mechanic: bookingMechanicSelect.value,
-      serviceType,
+      serviceType: bookingServiceTypeSelect.value,
       startTime: bookingStartTimeSelect.value,
-      durationHours,
+      durationHours: Number(bookingDurationSelect.value || 0),
       customerLabel: bookingCustomerInput.value.trim(),
       notes: bookingNotesInput.value.trim()
     }
 
-    if (!booking.date || !booking.mechanic || !booking.serviceType || !booking.startTime) {
-      showToast('Please fill in date, mechanic, service type and start time.', 'warning')
-      return
-    }
-
-    if (!fitsInDay(booking)) {
-      showToast('This booking does not fit within working hours.', 'danger')
+    if (!booking.date || !booking.mechanic || !booking.serviceType) {
+      showToast('Please fill in date, mechanic and service type.', 'warning')
       return
     }
 
@@ -667,35 +644,44 @@ if (bookingForm) {
       return
     }
 
-    if (isEdit) {
-      const idx = bookings.findIndex(b => b.id === id)
-      if (idx !== -1) {
-        bookings[idx] = booking
+    try {
+      if (isEdit) {
+        const updated = await api.updateWorkshopBooking(id, booking)
+        bookings = bookings.map(b => (b.id === id ? updated : b))
+      } else {
+        const created = await api.createWorkshopBooking(booking)
+        bookings.push(created)
       }
-    } else {
-      bookings.push(booking)
-    }
 
-    saveBookingsToStorage()
-    renderWeek()
-    bookingModal.hide()
-    showToast(isEdit ? 'Booking updated' : 'Booking created', 'success')
+      renderWeek()
+      bookingModal.hide()
+      showToast(isEdit ? 'Booking updated' : 'Booking created', 'success')
+    } catch (err) {
+      console.error(err)
+      showToast('Could not save booking to SharePoint.', 'danger')
+    }
   })
 }
 
 if (bookingDeleteBtn) {
-  bookingDeleteBtn.addEventListener('click', () => {
+  bookingDeleteBtn.addEventListener('click', async () => {
     const idRaw = bookingIdInput.value
     if (!idRaw) return
     const id = Number(idRaw)
+
     const confirmDelete = window.confirm('Delete this booking?')
     if (!confirmDelete) return
 
-    bookings = bookings.filter(b => b.id !== id)
-    saveBookingsToStorage()
-    renderWeek()
-    bookingModal.hide()
-    showToast('Booking deleted', 'success')
+    try {
+      await api.deleteWorkshopBooking(id)
+      bookings = bookings.filter(b => b.id !== id)
+      renderWeek()
+      bookingModal.hide()
+      showToast('Booking deleted', 'success')
+    } catch (err) {
+      console.error(err)
+      showToast('Could not delete booking from SharePoint.', 'danger')
+    }
   })
 }
 
@@ -736,15 +722,16 @@ if (btnNewBooking) {
 
 async function init () {
   try {
+    // Mechanics from the Salespeople list
     const employees = await api.getEmployees()
     mechanics = employees.map(e => ({ id: e.id, name: e.name }))
 
-    bookings = loadBookingsFromStorage()
+    // Bookings from SharePoint
+    bookings = await api.getWorkshopBookings()
 
     renderMechanicOptions()
     buildTimeOptions()
     renderWeek()
-    scrollToToday()
   } catch (err) {
     console.error(err)
     if (scheduleGridContainer) {
