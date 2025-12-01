@@ -7,15 +7,13 @@ import * as api from './api.sharepoint.js'
 // import * as api from './api.mock.js'
 
 // ------------------ state ------------------
-
-const mechanics = await api.getMechanics()
+const mechanics = {}
 // [{ id, date, mechanic, serviceType, startTime, durationHours, customerLabel, notes }]
 let bookings = []
 let currentWeekStart = getMonday(new Date()) // Date object (Monday of current week)
 
 // Time slots (08:00–18:00 in 30-minute steps)
 const TIME_SLOTS = buildTimeSlots()
-console.log(mechanics)
 // Booking types → CSS class
 const SERVICE_CLASS_MAP = {
   'Pro Service': 'booking-service-pro',
@@ -719,7 +717,11 @@ async function init () {
   try {
     // Mechanics from the Salespeople list
     const employees = await api.getEmployees()
-    mechanics = employees.map(e => ({ id: e.id, name: e.name }))
+
+    // Only keep role === 'Mechanic'
+    const mechanics = employees
+      .filter(e => e.role === 'Mechanic')
+      .map(e => ({ id: e.id, name: e.name }))
 
     // Bookings from SharePoint
     bookings = await api.getWorkshopBookings()
