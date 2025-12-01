@@ -8,12 +8,7 @@ import * as api from './api.sharepoint.js'
 
 // ------------------ state ------------------
 
-const EMPLOYEES = [
-  { id: 1, name: 'Brian' },
-  { id: 2, name: 'Sibs' },
-  { id: 3, name: 'Dallas' },
-  { id: 4, name: 'Bongs' }
-]
+const mechanics = await api.getMechanics()
 // [{ id, date, mechanic, serviceType, startTime, durationHours, customerLabel, notes }]
 let bookings = []
 let currentWeekStart = getMonday(new Date()) // Date object (Monday of current week)

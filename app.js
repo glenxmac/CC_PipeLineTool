@@ -145,11 +145,17 @@ function shortenNotes (notes, maxLen = 40) {
 
 function renderEmployeesTable () {
   if (!employeesTableBody) return
+
   employeesTableBody.innerHTML = allEmployees
     .map(emp => `
       <tr>
         <td>${emp.id}</td>
         <td>${emp.name}</td>
+        <td>
+          <span class="badge ${emp.role === 'Mechanic' ? 'bg-primary' : 'bg-secondary'}">
+            ${emp.role}
+          </span>
+        </td>
       </tr>
     `)
     .join('')

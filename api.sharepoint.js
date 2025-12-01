@@ -1,7 +1,6 @@
 // api.sharepoint.js
 
 // ---- CONFIG ----
-// ---- CONFIG ----
 const IS_LOCAL =
   window.location.hostname === 'localhost' ||
   window.location.hostname === '127.0.0.1'
@@ -11,8 +10,7 @@ const MSAL_CONFIG = {
     clientId: '796b1ce0-8549-4cf5-b2af-0f15b6948458', // App registration
     authority: 'https://login.microsoftonline.com/d69ad18b-43e9-43bc-8ef5-0ef37b5a8d0c',
     redirectUri: IS_LOCAL
-      // 🔧 adjust this to whatever Live Server gives you, e.g.:
-      ? window.location.origin // e.g. http://127.0.0.1:5500
+      ? window.location.origin // local dev, e.g. http://127.0.0.1:5500
       : 'https://glenxmac.github.io/CC_PipeLineTool/'
   }
 }
@@ -24,10 +22,7 @@ const GRAPH_SITE_ID =
   'completecyclist.sharepoint.com,96a4d39a-1fd7-4060-a116-c310fb39540c,bb7d28c5-27a4-4991-a726-f0e83946a8aa'
 
 const GRAPH_DEALS_LIST_ID = '7a9d0573-f143-4314-b726-c8f0a7b8b2e7'
-
-// TODO: replace with the Id of your Salespeople list
 const GRAPH_EMP_LIST_ID = 'a3c95ce2-cbe9-4e23-8a9f-a58a128fead6'
-
 const GRAPH_WORKSHOP_LIST_ID = '0373b889-ee0b-4ec6-b22a-2308e7b56e5f'
 
 // ---- MSAL setup ----
@@ -51,7 +46,6 @@ function isInPopup () {
 }
 
 async function loginIfNeeded () {
-  // If we're in the popup window, DON'T try to open another popup.
   if (isInPopup()) {
     // In this window we just let MSAL finish its flow and notify the opener.
     return getActiveAccount()
@@ -68,13 +62,10 @@ async function loginIfNeeded () {
 }
 
 async function getAccessToken () {
-  // 1) Try to grab any existing account
   let account = await getActiveAccount()
 
-  // 2) If no account, only then do interactive login
   if (!account) {
     if (isInPopup()) {
-      // In the popup we don't try to open another popup
       throw new Error('No account in popup context')
     }
     account = await loginIfNeeded()
@@ -85,12 +76,10 @@ async function getAccessToken () {
     account
   }
 
-  // 3) First try silent token (cached/refresh)
   try {
     const result = await msalInstance.acquireTokenSilent(request)
     return result.accessToken
   } catch (e) {
-    // If silent fails (expired / first time / consent needed), fall back to popup
     if (!isInPopup()) {
       const result = await msalInstance.acquireTokenPopup(request)
       return result.accessToken
@@ -115,7 +104,6 @@ async function graphFetch (path, options = {}) {
     const text = await res.text()
     throw new Error(`Graph error ${res.status}: ${text}`)
   }
-  // DELETE responses have no body
   if (res.status === 204) return null
   return res.json()
 }
@@ -125,7 +113,6 @@ async function graphFetch (path, options = {}) {
 function listItemToDeal (item) {
   const f = item.fields
   return {
-    // make sure id is a number, like in the mock
     id: Number(item.id),
     customer: f.Customer || '',
     bike: f.Bike || '',
@@ -140,7 +127,6 @@ function listItemToDeal (item) {
   }
 }
 
-// mirror: export async function getDeals()
 export async function getDeals () {
   const data = await graphFetch(
     `/sites/${GRAPH_SITE_ID}/lists/${GRAPH_DEALS_LIST_ID}/items?expand=fields`
@@ -148,7 +134,6 @@ export async function getDeals () {
   return data.value.map(listItemToDeal)
 }
 
-// mirror: export async function createDeal(newDeal)
 export async function createDeal (newDeal) {
   const fields = {
     Title: `${newDeal.customer} - ${newDeal.bike}`,
@@ -177,7 +162,6 @@ export async function createDeal (newDeal) {
   return listItemToDeal(item)
 }
 
-// mirror: export async function updateDeal(id, partial)
 export async function updateDeal (id, partial) {
   const fieldsPatch = {}
 
@@ -214,29 +198,27 @@ async function getDealById (id) {
   return listItemToDeal(item)
 }
 
-// mirror: export async function deleteDeal(id)
 export async function deleteDeal (id) {
   await graphFetch(
     `/sites/${GRAPH_SITE_ID}/lists/${GRAPH_DEALS_LIST_ID}/items/${id}`,
     { method: 'DELETE' }
   )
-  // mock returns resolved Promise<void>, so this matches
 }
 
-// ---------- EMPLOYEES (Salespeople) ----------
+// ---------- EMPLOYEES (Salespeople / Mechanics) ----------
 
-// map Salespeople list item to { id, name }
+// map Salespeople list item to { id, name, role }
 function listItemToEmployee (item) {
   const f = item.fields
-  // using Title as the display name
   const name = f.Title || f.Name || ''
+  const role = f.Role || '' // SharePoint choice column "Role"
   return {
     id: Number(item.id),
-    name
+    name,
+    role
   }
 }
 
-// mirror: export async function getEmployees()
 export async function getEmployees () {
   const data = await graphFetch(
     `/sites/${GRAPH_SITE_ID}/lists/${GRAPH_EMP_LIST_ID}/items?expand=fields`
@@ -244,8 +226,19 @@ export async function getEmployees () {
   return data.value.map(listItemToEmployee)
 }
 
-// mirror: export async function createEmployee(name)
-export async function createEmployee (name) {
+// Convenience helpers: filtered views
+export async function getMechanics () {
+  const all = await getEmployees()
+  return all.filter(e => e.role === 'Mechanic')
+}
+
+export async function getSalespeople () {
+  const all = await getEmployees()
+  return all.filter(e => e.role === 'Salesperson')
+}
+
+// createEmployee now optionally takes a role (default "Salesperson")
+export async function createEmployee (name, role = 'Salesperson') {
   const trimmed = name.trim()
   if (!trimmed) {
     throw new Error('Empty name')
@@ -253,8 +246,8 @@ export async function createEmployee (name) {
 
   const body = {
     fields: {
-      Title: trimmed
-      // if you add a separate Name column, also set Name: trimmed here
+      Title: trimmed,
+      Role: role // must match your SharePoint choice exactly
     }
   }
 
@@ -295,7 +288,7 @@ export async function getWorkshopBookings () {
 export async function createWorkshopBooking (booking) {
   const fields = {
     Title: booking.customerLabel || booking.serviceType || 'Workshop booking',
-    BookingDate: booking.date, // 'yyyy-MM-dd'
+    BookingDate: booking.date,
     Mechanic: booking.mechanic,
     ServiceType: booking.serviceType,
     StartTime: booking.startTime,
