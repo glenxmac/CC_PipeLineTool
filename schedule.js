@@ -207,6 +207,19 @@ function hasOverlap (booking, allBookings) {
   })
 }
 
+// Ensure a booking stays within the day's working hours based on TIME_SLOTS
+function fitsInDay (booking) {
+  const { startTime, durationHours } = booking
+  if (!startTime || !durationHours) return false
+
+  const startIndex = TIME_SLOTS.indexOf(startTime)
+  if (startIndex === -1) return false
+
+  const span = Math.round(durationHours * 2) // 0.5 hr slots
+  const endIndex = startIndex + span
+  return endIndex <= TIME_SLOTS.length
+}
+
 // Generate time options for the select (08:00–18:00)
 function buildTimeOptions () {
   if (!bookingStartTimeSelect) return
@@ -361,6 +374,7 @@ function renderWeek () {
   if (scheduleLoadingEl) scheduleLoadingEl.remove()
 
   attachGridHandlers()
+  scrollToToday()
 }
 
 // ------------------ interaction handlers ------------------
@@ -394,10 +408,28 @@ function attachGridHandlers () {
   })
 
   // Drag start
+  // Drag start – store booking id AND offset (how far from the top the mouse is)
   scheduleGridContainer.addEventListener('dragstart', e => {
     const block = e.target.closest('.booking-block')
     if (!block) return
-    e.dataTransfer.setData('text/plain', block.dataset.bookingId)
+
+    const id = Number(block.dataset.bookingId)
+    const booking = bookings.find(b => b.id === id)
+    if (!booking) return
+
+    // How many 30-min slots tall is this block?
+    const span = Math.max(1, Math.round((booking.durationHours || 0.5) * 2))
+
+    const rect = block.getBoundingClientRect()
+    const clickY = e.clientY
+    const relY = (clickY - rect.top) / rect.height
+    // Approximate how many slots down from the top we clicked
+    let offsetSlots = Math.round(relY * (span - 1))
+    if (offsetSlots < 0) offsetSlots = 0
+    if (offsetSlots > span - 1) offsetSlots = span - 1
+
+    const payload = { id, offsetSlots }
+    e.dataTransfer.setData('text/plain', JSON.stringify(payload))
     e.dataTransfer.effectAllowed = 'move'
   })
 
@@ -422,23 +454,51 @@ function attachGridHandlers () {
     e.preventDefault()
     slot.classList.remove('drop-target')
 
-    const idStr = e.dataTransfer.getData('text/plain')
-    if (!idStr) return
-    const id = Number(idStr)
+    const raw = e.dataTransfer.getData('text/plain')
+    if (!raw) return
+
+    let payload
+    try {
+      payload = JSON.parse(raw)
+    } catch {
+    // fallback to old plain-id format
+      payload = { id: Number(raw), offsetSlots: 0 }
+    }
+
+    const id = Number(payload.id)
+    const offsetSlots = Number(payload.offsetSlots || 0)
+
     const booking = bookings.find(b => b.id === id)
     if (!booking) return
 
-    const newDate = slot.dataset.date
-    const newMechanic = slot.dataset.mechanic
-    const newTime = slot.dataset.time
+    const dropTime = slot.dataset.time
+    const dropIndex = TIME_SLOTS.indexOf(dropTime)
+    if (dropIndex === -1) return
+
+    // How many slots tall is the booking?
+    const span = Math.max(1, Math.round((booking.durationHours || 0.5) * 2))
+
+    // Align the TOP of the block to a slot, compensating for where the mouse was
+    let newStartIndex = dropIndex - offsetSlots
+    if (newStartIndex < 0) newStartIndex = 0
+
+    // Compute the final start time from the corrected index
+    const newStartTime = TIME_SLOTS[newStartIndex]
 
     const updated = {
       ...booking,
-      date: newDate,
-      mechanic: newMechanic,
-      startTime: newTime
+      date: slot.dataset.date,
+      mechanic: slot.dataset.mechanic,
+      startTime: newStartTime
     }
 
+    // Check day bounds
+    if (!fitsInDay(updated)) {
+      showToast('Cannot move booking – outside working hours.', 'danger')
+      return
+    }
+
+    // Check overlap
     if (hasOverlap(updated, bookings)) {
       showToast('Cannot move booking – overlaps with another job.', 'danger')
       return
@@ -451,6 +511,25 @@ function attachGridHandlers () {
       renderWeek()
       showToast('Booking moved', 'success')
     }
+  })
+}
+
+function scrollToToday () {
+  const container = document.getElementById('scheduleGridContainer')
+  if (!container) return
+
+  const today = new Date()
+  const isoToday = formatDateISO(today)
+
+  // Find matching column
+  const th = container.querySelector(`th[data-date="${isoToday}"]`)
+  if (!th) return
+
+  // Scroll smoothly so this column is centered in the viewport
+  th.scrollIntoView({
+    behavior: 'smooth',
+    block: 'nearest',
+    inline: 'center'
   })
 }
 
@@ -520,6 +599,11 @@ if (bookingForm) {
 
     if (!booking.date || !booking.mechanic || !booking.serviceType || !booking.startTime) {
       showToast('Please fill in date, mechanic, service type and start time.', 'warning')
+      return
+    }
+
+    if (!fitsInDay(booking)) {
+      showToast('This booking does not fit within working hours.', 'danger')
       return
     }
 
@@ -608,6 +692,7 @@ async function init () {
     renderMechanicOptions()
     buildTimeOptions()
     renderWeek()
+    scrollToToday()
   } catch (err) {
     console.error(err)
     if (scheduleGridContainer) {
