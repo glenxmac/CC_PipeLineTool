@@ -268,7 +268,7 @@ function listItemToWorkshopBooking (item) {
     mechanic: f.Mechanic || '',
     serviceType: f.ServiceType || '',
     startTime: f.StartTime || '', // 'HH:mm'
-    durationHours: typeof f.DurationHours === 'number' ? f.DurationHours : 0,
+    durationHours: f.DurationHours || 0,
     customerLabel: f.CustomerLabel || f.Title || '',
     notes: f.Notes || ''
   }
@@ -316,18 +316,7 @@ export async function updateWorkshopBooking (id, partial) {
   if (partial.mechanic !== undefined) fieldsPatch.Mechanic = partial.mechanic
   if (partial.serviceType !== undefined) fieldsPatch.ServiceType = partial.serviceType
   if (partial.startTime !== undefined) fieldsPatch.StartTime = partial.startTime
-
-  if (partial.durationHours !== undefined) {
-    const duration =
-      typeof partial.durationHours === 'number'
-        ? partial.durationHours
-        : partial.durationHours
-          ? Number(partial.durationHours)
-          : null
-
-    fieldsPatch.DurationHours =
-      duration != null && !Number.isNaN(duration) ? duration : null
-  }
+  if (partial.durationHours !== undefined) fieldsPatch.DurationHours = partial.durationHours
 
   if (partial.customerLabel !== undefined) {
     fieldsPatch.CustomerLabel = partial.customerLabel
