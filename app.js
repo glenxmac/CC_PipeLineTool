@@ -546,8 +546,7 @@ const FIXED_STATUSES = ['Enquiry', 'Quote', 'Approval', 'Committed']
 function renderMonthlySummary () {
   if (!monthlySummaryContainer) return
 
-  const monthFilter = summaryMonthInput?.value || ''
-  const baseMonth = monthFilter || getCurrentMonthKey()
+  const baseMonth = getCurrentMonthKey()
 
   // -------------- HOT MODE: current month + HOT pipeline + closed --------------
   if (monthlyMode === 'Hot') {
@@ -1171,7 +1170,6 @@ if (employeeForm && employeeNameInput) {
 if (summaryMonthInput) {
   summaryMonthInput.addEventListener('change', () => {
     renderWeeklySummary()
-    renderMonthlySummary()
   })
 }
 
