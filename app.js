@@ -30,12 +30,12 @@ const URGENCY_COLORS = {
   'Long-term': 'bg-secondary'
 }
 
-const URGENCY_LEVELS = ['Hot', 'Warm', 'Cold']
+const URGENCY_LEVELS = ['Hot', 'Warm', 'Cool']
 
 const URGENCY_BADGE_CLASSES = {
   Hot: 'badge rounded-pill bg-danger',
   Warm: 'badge rounded-pill bg-secondary',
-  Cold: 'badge rounded-pill bg-light text-dark border'
+  Cool: 'badge rounded-pill bg-light text-dark border'
 }
 
 function renderUrgencyTag (urgency) {
@@ -75,7 +75,7 @@ let allDeals = []
 let allEmployees = []
 
 let selectedStatusFilter = ''
-let monthlyMode = 'hot' // 'hot' | 'warm' | 'cold'
+let monthlyMode = 'Hot' // 'hot' | 'warm' | 'Cool'
 
 // Closed Deals tab
 const closedDealsTableBody = document.querySelector('#closedDealsTable tbody')
@@ -550,7 +550,7 @@ function renderMonthlySummary () {
   const baseMonth = monthFilter || getCurrentMonthKey()
 
   // -------------- HOT MODE: current month + HOT pipeline + closed --------------
-  if (monthlyMode === 'hot') {
+  if (monthlyMode === 'Hot') {
     // HOT open deals in the selected month
     const openDeals = allDeals.filter(d => {
       if (d.closeDate) return false
@@ -563,7 +563,7 @@ function renderMonthlySummary () {
       if (dealMonth !== baseMonth) return false
 
       const urg = (d.urgency || 'Hot').toLowerCase()
-      return urg === 'hot'
+      return urg === 'Hot'
     })
 
     // Closed this month (Lost / Invoiced in the selected month)
@@ -751,8 +751,8 @@ function renderMonthlySummary () {
     return
   }
 
-  // -------------- WARM / COLD MODES: FUTURE PIPELINE --------------
-  const targetUrgency = monthlyMode === 'warm' ? 'warm' : 'cold'
+  // -------------- WARM / Cool MODES: FUTURE PIPELINE --------------
+  const targetUrgency = monthlyMode === 'Warm' ? 'Warm' : 'Cool'
 
   // future = open date month strictly after the selected (or current) month
   const futureDeals = allDeals.filter(d => {
@@ -1195,7 +1195,7 @@ if (monthlyModeTabs) {
     const btn = e.target.closest('button[data-mode]')
     if (!btn) return
 
-    monthlyMode = btn.dataset.mode // 'hot' | 'warm' | 'cold'
+    monthlyMode = btn.dataset.mode // 'hot' | 'warm' | 'Cool'
 
     // toggle active class
     monthlyModeTabs
