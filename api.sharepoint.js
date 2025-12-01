@@ -282,19 +282,30 @@ export async function getWorkshopBookings () {
 }
 
 export async function createWorkshopBooking (booking) {
+  const duration =
+    typeof booking.durationHours === 'number'
+      ? booking.durationHours
+      : booking.durationHours
+        ? Number(booking.durationHours)
+        : null
+
   const fields = {
     Title: booking.customerLabel || booking.serviceType || 'Workshop booking',
-    BookingDate: booking.date,
+    BookingDate: booking.date, // 'yyyy-MM-dd'
     Mechanic: booking.mechanic,
     ServiceType: booking.serviceType,
     StartTime: booking.startTime,
-    DurationHours: booking.durationHours,
     CustomerLabel: booking.customerLabel,
     Notes: booking.notes
   }
 
+  if (duration != null && !Number.isNaN(duration)) {
+    fields.DurationHours = duration
+  }
+
   const body = { fields }
 
+  console.log('Workshop payload:', body)
   const item = await graphFetch(
     `/sites/${GRAPH_SITE_ID}/lists/${GRAPH_WORKSHOP_LIST_ID}/items`,
     {
@@ -313,7 +324,19 @@ export async function updateWorkshopBooking (id, partial) {
   if (partial.mechanic !== undefined) fieldsPatch.Mechanic = partial.mechanic
   if (partial.serviceType !== undefined) fieldsPatch.ServiceType = partial.serviceType
   if (partial.startTime !== undefined) fieldsPatch.StartTime = partial.startTime
-  if (partial.durationHours !== undefined) fieldsPatch.DurationHours = partial.durationHours
+
+  if (partial.durationHours !== undefined) {
+    const duration =
+      typeof partial.durationHours === 'number'
+        ? partial.durationHours
+        : partial.durationHours
+          ? Number(partial.durationHours)
+          : null
+
+    fieldsPatch.DurationHours =
+      duration != null && !Number.isNaN(duration) ? duration : null
+  }
+
   if (partial.customerLabel !== undefined) {
     fieldsPatch.CustomerLabel = partial.customerLabel
     fieldsPatch.Title = partial.customerLabel
