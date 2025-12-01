@@ -282,18 +282,27 @@ export async function getWorkshopBookings () {
 }
 
 export async function createWorkshopBooking (booking) {
+  const duration = booking.durationHours
+
   const fields = {
-    // Title is required, everything else we *skip* for now
-    Title: booking.customerLabel || booking.serviceType || 'Workshop booking'
+    Title: booking.customerLabel || booking.serviceType || 'Workshop booking',
+    BookingDate: booking.date, // 'yyyy-MM-dd'
+    Mechanic: booking.mechanic,
+    ServiceType: booking.serviceType,
+    StartTime: booking.startTime,
+    // DurationHours: duration,
+    CustomerLabel: booking.customerLabel,
+    Notes: booking.notes
   }
 
-  console.log('TEST createWorkshopBooking payload:', { fields })
+  const body = { fields }
 
+  console.log('Workshop payload:', body)
   const item = await graphFetch(
     `/sites/${GRAPH_SITE_ID}/lists/${GRAPH_WORKSHOP_LIST_ID}/items`,
     {
       method: 'POST',
-      body: JSON.stringify({ fields })
+      body: JSON.stringify(body)
     }
   )
 
