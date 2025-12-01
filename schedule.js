@@ -15,7 +15,7 @@ let currentWeekStart = getMonday(new Date()) // Date object (Monday of current w
 
 // Time slots (08:00–18:00 in 30-minute steps)
 const TIME_SLOTS = buildTimeSlots()
-
+console.log(mechanics)
 // Booking types → CSS class
 const SERVICE_CLASS_MAP = {
   'Pro Service': 'booking-service-pro',
