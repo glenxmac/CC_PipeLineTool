@@ -285,7 +285,8 @@ function listItemToWorkshopBooking (item) {
     mechanic: f.Mechanic || '',
     serviceType: f.ServiceType || '',
     startTime, // 'HH:mm'
-    durationHours: f.durationHours,
+    durationHours:
+      typeof f.DurationHours === 'number' ? f.DurationHours : 0,
     customerLabel: f.CustomerLabel || f.Title || '',
     notes: f.Notes || ''
   }
