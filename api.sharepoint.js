@@ -264,29 +264,27 @@ export async function createEmployee (name, role) {
 
 function listItemToWorkshopBooking (item) {
   const f = item.fields
-
-  const rawDate = f.BookingDate
-  // Normalise '2025-12-02T00:00:00Z' -> '2025-12-02'
-  const date =
-    typeof rawDate === 'string'
-      ? rawDate.split('T')[0]
-      : rawDate || null
-
-  const rawTime = f.StartTime
-  // we'll clean up time below
-  const startTime =
-    typeof rawTime === 'string'
-      ? rawTime.slice(0, 5) // '08:00:00' -> '08:00'
-      : rawTime || ''
-
   return {
     id: Number(item.id),
-    date, // 'YYYY-MM-DD'
+
+    // IMPORTANT: convert BookingDate to local YYYY-MM-DD (fixes the "no bookings for day" issue)
+    date: f.BookingDate
+      ? (() => {
+          const d = new Date(f.BookingDate) // handles the 22:00Z offset
+          const y = d.getFullYear()
+          const m = String(d.getMonth() + 1).padStart(2, '0')
+          const day = String(d.getDate()).padStart(2, '0')
+          return `${y}-${m}-${day}` // "2025-12-01"
+        })()
+      : null,
+
     mechanic: f.Mechanic || '',
     serviceType: f.ServiceType || '',
-    startTime, // 'HH:mm'
-    durationHours:
-      typeof f.DurationHours === 'number' ? f.DurationHours : 0,
+    startTime: f.StartTime || '',
+
+    // HERE: force to number
+    durationHours: f.DurationHours != null ? Number(f.DurationHours) : 0,
+
     customerLabel: f.CustomerLabel || f.Title || '',
     notes: f.Notes || ''
   }
