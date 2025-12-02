@@ -72,10 +72,13 @@ async function loginIfNeeded () {
 }
 
 async function getAccessToken () {
-  let account = await getActiveAccount()
+  const account = await getActiveAccount()
 
+  // No account? Silent won't work, throw a special error.
   if (!account) {
-    account = await loginIfNeeded()
+    const err = new Error('NO_ACCOUNT')
+    err.code = 'NO_ACCOUNT'
+    throw err
   }
 
   const request = {
@@ -87,9 +90,9 @@ async function getAccessToken () {
     const result = await msalInstance.acquireTokenSilent(request)
     return result.accessToken
   } catch (e) {
-    console.warn('Silent token acquisition failed, using redirect:', e)
-    await msalInstance.acquireTokenRedirect(request)
-    return new Promise(() => {})
+    // Bubble up so UI can decide when to show popup
+    e.code = e.code || 'SILENT_FAILED'
+    throw e
   }
 }
 
@@ -111,6 +114,15 @@ async function graphFetch (path, options = {}) {
   }
   if (res.status === 204) return null
   return res.json()
+}
+
+export async function loginInteractive () {
+  // Force a popup, must be called from a user click handler
+  const loginResponse = await msalInstance.loginPopup({
+    scopes: GRAPH_SCOPES
+  })
+  msalInstance.setActiveAccount(loginResponse.account)
+  return loginResponse.account
 }
 
 // ---------- DEALS (PipelineDeals) ----------
