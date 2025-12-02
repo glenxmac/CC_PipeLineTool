@@ -614,7 +614,6 @@ if (bookingForm) {
     const id = isEdit ? Number(idRaw) : undefined
 
     const serviceType = bookingServiceTypeSelect.value
-    const durationHours = getDefaultDurationHours(serviceType)
 
     const booking = {
       id,
@@ -622,7 +621,7 @@ if (bookingForm) {
       mechanic: bookingMechanicSelect.value,
       serviceType,
       startTime: bookingStartTimeSelect.value,
-      durationHours,
+      durationHours: getDefaultDurationHours(serviceType),
       customerLabel: bookingCustomerInput.value.trim(),
       notes: bookingNotesInput.value.trim()
     }

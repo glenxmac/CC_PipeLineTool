@@ -283,7 +283,7 @@ function listItemToWorkshopBooking (item) {
     startTime: f.StartTime || '',
 
     // HERE: force to number
-    durationHours: f.DurationHours != null ? Number(f.DurationHours) : 0,
+    durationHours: Number(f.DurationHours),
 
     customerLabel: f.CustomerLabel || f.Title || '',
     notes: f.Notes || ''
@@ -300,15 +300,13 @@ export async function getWorkshopBookings () {
 }
 
 export async function createWorkshopBooking (booking) {
-  const duration = booking.duration
-
   const fields = {
     Title: booking.customerLabel || booking.serviceType || 'Workshop booking',
     BookingDate: booking.date,
     Mechanic: booking.mechanic,
     ServiceType: booking.serviceType,
     StartTime: booking.startTime,
-    DurationHours: duration,
+    DurationHours: Number(booking.durationHours),
     CustomerLabel: booking.customerLabel,
     Notes: booking.notes
   }
