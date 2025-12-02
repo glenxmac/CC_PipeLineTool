@@ -296,6 +296,8 @@ export async function getWorkshopBookings () {
   const data = await graphFetch(
     `/sites/${GRAPH_SITE_ID}/lists/${GRAPH_WORKSHOP_LIST_ID}/items?expand=fields`
   )
+
+  console.log(data)
   return data.value.map(listItemToWorkshopBooking)
 }
 
