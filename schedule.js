@@ -252,8 +252,6 @@ function renderWeek () {
   // One table per weekday: rows = time slots, columns = mechanics
   days.forEach(day => {
     const bookingsForDay = bookings.filter(b => b.date === day.iso)
-    console.log('bookings for day:')
-    console.log(bookingsForDay)
     // Prebuild grid per mechanic & time index with booking/skip info
     const grid = {}
     mechanics.forEach(mech => {

@@ -77,8 +77,6 @@ let allEmployees = []
 let selectedStatusFilter = ''
 let monthlyMode = 'Hot' // 'hot' | 'warm' | 'Cool'
 
-const msLoginBtn = document.getElementById('btnMsLogin')
-
 // Closed Deals tab
 const closedDealsTableBody = document.querySelector('#closedDealsTable tbody')
 const closedMonthFilter = document.getElementById('closedMonthFilter')
@@ -104,30 +102,15 @@ const employeesTableBody = document.querySelector('#employeesTable tbody')
 // ---- LOAD EVERYTHING ----
 
 async function loadAll () {
-  try {
-    allEmployees = await api.getEmployees()
-    allDeals = await api.getDeals()
+  allEmployees = await api.getEmployees()
+  allDeals = await api.getDeals()
 
-    renderEmployeesUI()
-    renderStatusSummary()
-    renderDealsTable()
-    renderWeeklySummary()
-    renderMonthlySummary()
-    renderClosedDealsTable()
-  } catch (err) {
-    console.error('loadAll failed:', err)
-
-    // If we’re not signed in yet, just show a hint
-    if (err.code === 'NO_ACCOUNT' || err.code === 'SILENT_FAILED') {
-      if (typeof showToast === 'function') {
-        showToast('Please sign in to Microsoft to load pipeline data.', 'warning')
-      }
-    } else {
-      if (typeof showToast === 'function') {
-        showToast('Could not load data from SharePoint.', 'danger')
-      }
-    }
-  }
+  renderEmployeesUI()
+  renderStatusSummary()
+  renderDealsTable()
+  renderWeeklySummary()
+  renderMonthlySummary()
+  renderClosedDealsTable()
 }
 
 // ---- EMPLOYEES UI ----
@@ -1235,16 +1218,3 @@ if (monthlyModeTabs) {
 
 // ---- INITIAL LOAD ----
 loadAll().catch(err => console.error(err))
-
-if (msLoginBtn) {
-  msLoginBtn.addEventListener('click', async () => {
-    try {
-      await api.loginInteractive() // opens popup (user initiated)
-      await loadAll() // now tokens exist, so silent works
-      showToast('Signed in successfully.', 'success')
-    } catch (err) {
-      console.error('Interactive login failed:', err)
-      showToast('Sign-in failed. Please try again.', 'danger')
-    }
-  })
-}
