@@ -7,17 +7,16 @@ const IS_LOCAL =
 
 const MSAL_CONFIG = {
   auth: {
-    clientId: '796b1ce0-8549-4cf5-b2af-0f15b6948458', // App registration
+    clientId: '796b1ce0-8549-4cf5-b2af-0f15b6948458',
     authority: 'https://login.microsoftonline.com/d69ad18b-43e9-43bc-8ef5-0ef37b5a8d0c',
     redirectUri: IS_LOCAL
-      ? window.location.origin // local dev, e.g. http://127.0.0.1:5500
+      ? window.location.origin
       : 'https://glenxmac.github.io/CC_PipeLineTool/'
   }
 }
 
 const GRAPH_SCOPES = ['https://graph.microsoft.com/Sites.ReadWrite.All']
 
-// HOST + SITE + LIST IDs
 const GRAPH_SITE_ID =
   'completecyclist.sharepoint.com,96a4d39a-1fd7-4060-a116-c310fb39540c,bb7d28c5-27a4-4991-a726-f0e83946a8aa'
 
@@ -28,22 +27,23 @@ const GRAPH_WORKSHOP_LIST_ID = '0373b889-ee0b-4ec6-b22a-2308e7b56e5f'
 // ---- MSAL setup (redirect-based auth) ----
 const msalInstance = new msal.PublicClientApplication(MSAL_CONFIG)
 
-// Handle the redirect back from Azure AD and set the active account
-msalInstance
+// Exported promise: resolves once MSAL has processed any redirect hash
+export const authReady = msalInstance
   .handleRedirectPromise()
   .then(response => {
     if (response && response.account) {
       msalInstance.setActiveAccount(response.account)
     } else {
-      // If no active account yet but we have cached accounts, pick the first
       const accounts = msalInstance.getAllAccounts()
       if (accounts.length > 0) {
         msalInstance.setActiveAccount(accounts[0])
       }
     }
+    return true
   })
   .catch(err => {
     console.error('MSAL redirect error:', err)
+    return false
   })
 
 async function getActiveAccount () {
@@ -58,20 +58,16 @@ async function getActiveAccount () {
   return account
 }
 
-// Kick off interactive login using redirect (no popups)
+// Interactive login via redirect
 async function loginIfNeeded () {
   const account = await getActiveAccount()
   if (account) return account
 
-  // This will navigate to Microsoft login; execution of this call
-  // won't continue until after redirect back.
   await msalInstance.loginRedirect({
     scopes: GRAPH_SCOPES
   })
 
-  // After redirect, handleRedirectPromise() above will run.
-  // Return a promise that never resolves to satisfy callers,
-  // since the page navigation interrupts the flow anyway.
+  // We’re navigating away; caller should effectively stop here.
   return new Promise(() => {})
 }
 
@@ -92,8 +88,6 @@ async function getAccessToken () {
     return result.accessToken
   } catch (e) {
     console.warn('Silent token acquisition failed, using redirect:', e)
-
-    // If we need interaction, use redirect (works across all browsers)
     await msalInstance.acquireTokenRedirect(request)
     return new Promise(() => {})
   }
@@ -286,6 +280,7 @@ export async function getWorkshopBookings () {
   const data = await graphFetch(
     `/sites/${GRAPH_SITE_ID}/lists/${GRAPH_WORKSHOP_LIST_ID}/items?expand=fields`
   )
+  console.log(data)
   return data.value.map(listItemToWorkshopBooking)
 }
 
