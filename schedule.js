@@ -729,6 +729,8 @@ async function init () {
     // Bookings from SharePoint
     bookings = await api.getWorkshopBookings()
 
+    console.log(`bookings: ${bookings}`)
+    console.log(`mechanics: ${mechanics}`)
     renderMechanicOptions()
     buildTimeOptions()
     renderWeek()

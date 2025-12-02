@@ -25,8 +25,26 @@ const GRAPH_DEALS_LIST_ID = '7a9d0573-f143-4314-b726-c8f0a7b8b2e7'
 const GRAPH_EMP_LIST_ID = 'a3c95ce2-cbe9-4e23-8a9f-a58a128fead6'
 const GRAPH_WORKSHOP_LIST_ID = '0373b889-ee0b-4ec6-b22a-2308e7b56e5f'
 
-// ---- MSAL setup ----
+// ---- MSAL setup (redirect-based auth) ----
 const msalInstance = new msal.PublicClientApplication(MSAL_CONFIG)
+
+// Handle the redirect back from Azure AD and set the active account
+msalInstance
+  .handleRedirectPromise()
+  .then(response => {
+    if (response && response.account) {
+      msalInstance.setActiveAccount(response.account)
+    } else {
+      // If no active account yet but we have cached accounts, pick the first
+      const accounts = msalInstance.getAllAccounts()
+      if (accounts.length > 0) {
+        msalInstance.setActiveAccount(accounts[0])
+      }
+    }
+  })
+  .catch(err => {
+    console.error('MSAL redirect error:', err)
+  })
 
 async function getActiveAccount () {
   let account = msalInstance.getActiveAccount()
@@ -40,34 +58,27 @@ async function getActiveAccount () {
   return account
 }
 
-function isInPopup () {
-  // True when running inside the MSAL login popup window
-  return !!window.opener && window.opener !== window
-}
-
+// Kick off interactive login using redirect (no popups)
 async function loginIfNeeded () {
-  if (isInPopup()) {
-    // In this window we just let MSAL finish its flow and notify the opener.
-    return getActiveAccount()
-  }
-
   const account = await getActiveAccount()
   if (account) return account
 
-  const loginResponse = await msalInstance.loginPopup({
+  // This will navigate to Microsoft login; execution of this call
+  // won't continue until after redirect back.
+  await msalInstance.loginRedirect({
     scopes: GRAPH_SCOPES
   })
-  msalInstance.setActiveAccount(loginResponse.account)
-  return loginResponse.account
+
+  // After redirect, handleRedirectPromise() above will run.
+  // Return a promise that never resolves to satisfy callers,
+  // since the page navigation interrupts the flow anyway.
+  return new Promise(() => {})
 }
 
 async function getAccessToken () {
   let account = await getActiveAccount()
 
   if (!account) {
-    if (isInPopup()) {
-      throw new Error('No account in popup context')
-    }
     account = await loginIfNeeded()
   }
 
@@ -80,11 +91,11 @@ async function getAccessToken () {
     const result = await msalInstance.acquireTokenSilent(request)
     return result.accessToken
   } catch (e) {
-    if (!isInPopup()) {
-      const result = await msalInstance.acquireTokenPopup(request)
-      return result.accessToken
-    }
-    throw e
+    console.warn('Silent token acquisition failed, using redirect:', e)
+
+    // If we need interaction, use redirect (works across all browsers)
+    await msalInstance.acquireTokenRedirect(request)
+    return new Promise(() => {})
   }
 }
 
@@ -207,7 +218,6 @@ export async function deleteDeal (id) {
 
 // ---------- EMPLOYEES (Salespeople / Mechanics) ----------
 
-// map Salespeople list item to { id, name, role }
 function listItemToEmployee (item) {
   const f = item.fields
   return {
@@ -224,7 +234,6 @@ export async function getEmployees () {
   return data.value.map(listItemToEmployee)
 }
 
-// Convenience helpers: filtered views
 export async function getMechanics () {
   const all = await getEmployees()
   return all.filter(e => e.role === 'Mechanic')
@@ -235,7 +244,6 @@ export async function getSalespeople () {
   return all.filter(e => e.role === 'Salesperson')
 }
 
-// createEmployee now optionally takes a role (default "Salesperson")
 export async function createEmployee (name, role) {
   const trimmed = name.trim()
   if (!trimmed) throw new Error('Empty name')
@@ -264,10 +272,10 @@ function listItemToWorkshopBooking (item) {
   const f = item.fields
   return {
     id: Number(item.id),
-    date: f.BookingDate || null, // 'yyyy-MM-dd'
+    date: f.BookingDate || null,
     mechanic: f.Mechanic || '',
     serviceType: f.ServiceType || '',
-    startTime: f.StartTime || '', // 'HH:mm'
+    startTime: f.StartTime || '',
     durationHours: f.DurationHours || 0,
     customerLabel: f.CustomerLabel || f.Title || '',
     notes: f.Notes || ''
@@ -286,7 +294,7 @@ export async function createWorkshopBooking (booking) {
 
   const fields = {
     Title: booking.customerLabel || booking.serviceType || 'Workshop booking',
-    BookingDate: booking.date, // 'yyyy-MM-dd'
+    BookingDate: booking.date,
     Mechanic: booking.mechanic,
     ServiceType: booking.serviceType,
     StartTime: booking.startTime,
