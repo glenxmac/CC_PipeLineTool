@@ -253,6 +253,7 @@ function renderWeek () {
   days.forEach(day => {
     const bookingsForDay = bookings.filter(b => b.date === day.iso)
     // Prebuild grid per mechanic & time index with booking/skip info
+    console.log(bookingsForDay)
     const grid = {}
     mechanics.forEach(mech => {
       grid[mech.name] = Array(TIME_SLOTS.length).fill(null)
