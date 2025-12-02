@@ -264,13 +264,29 @@ export async function createEmployee (name, role) {
 
 function listItemToWorkshopBooking (item) {
   const f = item.fields
+
+  const rawDate = f.BookingDate
+  // Normalise '2025-12-02T00:00:00Z' -> '2025-12-02'
+  const date =
+    typeof rawDate === 'string'
+      ? rawDate.split('T')[0]
+      : rawDate || null
+
+  const rawTime = f.StartTime
+  // we'll clean up time below
+  const startTime =
+    typeof rawTime === 'string'
+      ? rawTime.slice(0, 5) // '08:00:00' -> '08:00'
+      : rawTime || ''
+
   return {
     id: Number(item.id),
-    date: f.BookingDate || null,
+    date, // 'YYYY-MM-DD'
     mechanic: f.Mechanic || '',
     serviceType: f.ServiceType || '',
-    startTime: f.StartTime || '',
-    durationHours: f.DurationHours || 0,
+    startTime, // 'HH:mm'
+    durationHours:
+      typeof f.DurationHours === 'number' ? f.DurationHours : 0,
     customerLabel: f.CustomerLabel || f.Title || '',
     notes: f.Notes || ''
   }
