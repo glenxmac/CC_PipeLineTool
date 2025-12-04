@@ -62,6 +62,7 @@ const bookingCustomerInput = document.getElementById('bookingCustomer')
 const bookingNotesInput = document.getElementById('bookingNotes')
 const bookingDeleteBtn = document.getElementById('bookingDeleteBtn')
 const bookingModalLabel = document.getElementById('bookingModalLabel')
+const bookingBikeReceivedInput = document.getElementById('bookingBikeReceived') // 👈 NEW
 
 // Toast container (same idea as app.js)
 const toastContainer = document.getElementById('toastContainer')
@@ -319,24 +320,26 @@ function renderWeek () {
             `${b.serviceType || ''}`.trim() ||
             'Booking'
 
+          const statusClass = b.bikeReceived ? 'booking-received' : 'booking-pending'
+
           html += `
             <td
-              class="schedule-slot"
-              data-date="${day.iso}"
-              data-mechanic="${mech.name}"
-              data-time="${slotTime}"
-              rowspan="${cell.rowSpan}"
+            class="schedule-slot"
+            data-date="${day.iso}"
+            data-mechanic="${mech.name}"
+            data-time="${slotTime}"
+            rowspan="${cell.rowSpan}"
             >
-              <div
-                class="booking-block ${serviceClass}"
+            <div
+                class="booking-block ${serviceClass} ${statusClass}"
                 data-booking-id="${b.id}"
                 title="${label}"
                 draggable="true"
-              >
-                ${slotTime} • ${label}
-              </div>
+            >
+                ${slotTime} • ${label} • \n ${b.notes}
+            </div>
             </td>
-          `
+        `
         } else if (cell.type === 'skip') {
           // Covered by rowspan above – no <td> for this mechanic in this row
         }
@@ -578,6 +581,7 @@ function openBookingModal (booking, defaults = {}) {
   let startTimeVal = defaults.startTime || '08:00'
   let customerVal = ''
   let notesVal = ''
+  let bikeReceivedVal = false
 
   if (booking) {
     bookingIdInput.value = booking.id
@@ -587,6 +591,7 @@ function openBookingModal (booking, defaults = {}) {
     startTimeVal = booking.startTime || '08:00'
     customerVal = booking.customerLabel || ''
     notesVal = booking.notes || ''
+    bikeReceivedVal = !!booking.bikeReceived
     bookingDeleteBtn.classList.remove('d-none')
     bookingModalLabel.textContent = 'Edit booking'
   } else {
@@ -599,6 +604,9 @@ function openBookingModal (booking, defaults = {}) {
   bookingStartTimeSelect.value = startTimeVal
   bookingCustomerInput.value = customerVal
   bookingNotesInput.value = notesVal
+  if (bookingBikeReceivedInput) {
+    bookingBikeReceivedInput.checked = bikeReceivedVal // 👈 NEW
+  }
 
   bookingModal.show()
 }
@@ -623,7 +631,10 @@ if (bookingForm) {
       startTime: bookingStartTimeSelect.value,
       durationHours: getDefaultDurationHours(serviceType),
       customerLabel: bookingCustomerInput.value.trim(),
-      notes: bookingNotesInput.value.trim()
+      notes: bookingNotesInput.value.trim(),
+      bikeReceived: bookingBikeReceivedInput
+        ? bookingBikeReceivedInput.checked
+        : false
     }
 
     if (!booking.date || !booking.mechanic || !booking.serviceType) {

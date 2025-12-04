@@ -142,7 +142,33 @@
             pointer-events: none; /* CRITICAL: Allows mouse to "see through" to the slots */
         }
 
-/* ... rest of your css ... */
+        /* Base block: white with coloured border */
+        .booking-block {
+        border-radius: 4px;
+        padding: 2px 4px;
+        font-size: 0.75rem;
+        border: 2px solid transparent;
+        background-color: #ffffff;
+        }
+
+        /* Service colours still applied as before */
+        .booking-service-pro    { border-color: #007bff; background-color: #e8f1ff; }
+        .booking-service-major  { border-color: #17a2b8; background-color: #e6f7fa; }
+        .booking-service-expert { border-color: #28a745; background-color: #e8f9ef; }
+        .booking-service-min    { border-color: #ffc107; background-color: #fff9e6; }
+
+        /* Pending: pale / hollow look */
+        .booking-pending {
+        background-color: #ffffff !important;
+        opacity: 0.9;
+        }
+
+        /* Received: solid colour fill (use border colour as bg) */
+        .booking-received.booking-service-pro    { background-color: #007bff; color: #fff; }
+        .booking-received.booking-service-major  { background-color: #17a2b8; color: #fff; }
+        .booking-received.booking-service-expert { background-color: #28a745; color: #fff; }
+        .booking-received.booking-service-min    { background-color: #ffc107; color: #000; }
+
     </style>
   </head>
 
@@ -360,6 +386,17 @@
                     rows="2"
                     placeholder="Extra details, parts, etc."
                   ></textarea>
+                </div>
+
+                <div class="form-check mt-2">
+                    <input
+                        class="form-check-input"
+                        type="checkbox"
+                        id="bookingBikeReceived"
+                    />
+                    <label class="form-check-label" for="bookingBikeReceived">
+                        Bike is in store
+                    </label>
                 </div>
               </div>
             </div>

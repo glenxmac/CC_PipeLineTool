@@ -286,7 +286,8 @@ function listItemToWorkshopBooking (item) {
     durationHours: Number(f.DurationHours),
 
     customerLabel: f.CustomerLabel || f.Title || '',
-    notes: f.Notes || ''
+    notes: f.Notes || '',
+    bikeReceived: !!f.BikeReceived
   }
 }
 
@@ -308,7 +309,8 @@ export async function createWorkshopBooking (booking) {
     StartTime: booking.startTime,
     DurationHours: Number(booking.durationHours),
     CustomerLabel: booking.customerLabel,
-    Notes: booking.notes
+    Notes: booking.notes,
+    BikeReceived: !!booking.bikeReceived
   }
 
   const body = { fields }
@@ -333,6 +335,7 @@ export async function updateWorkshopBooking (id, partial) {
   if (partial.serviceType !== undefined) fieldsPatch.ServiceType = partial.serviceType
   if (partial.startTime !== undefined) fieldsPatch.StartTime = partial.startTime
   if (partial.durationHours !== undefined) fieldsPatch.DurationHours = partial.durationHours
+  if (partial.bikeReceived !== undefined) fieldsPatch.BikeReceived = !!partial.bikeReceived
 
   if (partial.customerLabel !== undefined) {
     fieldsPatch.CustomerLabel = partial.customerLabel
